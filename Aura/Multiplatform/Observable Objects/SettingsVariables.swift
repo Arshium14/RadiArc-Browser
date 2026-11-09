@@ -56,7 +56,7 @@ class SettingsVariables: ObservableObject {
     
     @AppStorage("hideBrowseForMe") var hideBrowseForMe = false
     
-    @AppStorage("historyEnabled") var historyEnabled = false
+    @AppStorage("historyEnabled") var historyEnabled = true
     
     @AppStorage("hideMagnifyingGlassSearch") var hideMagnifyingGlassSearch = false
     

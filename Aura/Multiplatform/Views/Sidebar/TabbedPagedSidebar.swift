@@ -57,7 +57,7 @@ struct TabbedPagedSidebar: View {
                     .padding([.top, .horizontal], 5)
                 
                 TabView(selection: $selectedSpaceIndex) {
-                    ForEach(0..<spaces.count, id:\.self) { space in
+                    ForEach(spaces.indices, id:\.self) { space in
                         VStack {
                             SidebarSpaceParameter(currentSelectedSpaceIndex: space, geo: geo)
                                 .environmentObject(variables)
@@ -104,11 +104,14 @@ struct TabbedPagedSidebar: View {
                             })
                     }.buttonStyle(.plain)
                         .sheet(isPresented: $variables.showSettings) {
+                        let safeIndex = min(max(selectedSpaceIndex, 0), max(spaces.count - 1, 0))
+                        let spaceStart = spaces.isEmpty ? startHex : (!spaces[safeIndex].startHex.isEmpty ? spaces[safeIndex].startHex : startHex)
+                        let spaceEnd = spaces.isEmpty ? endHex : (!spaces[safeIndex].endHex.isEmpty ? spaces[safeIndex].endHex : endHex)
                         if #available(iOS 18.0, visionOS 2.0, *) {
-                            NewSettings(presentSheet: $variables.showSettings, startHex: (!spaces[selectedSpaceIndex].startHex.isEmpty) ? spaces[selectedSpaceIndex].startHex: startHex, endHex: (!spaces[selectedSpaceIndex].startHex.isEmpty) ? spaces[selectedSpaceIndex].endHex: endHex)
+                            NewSettings(presentSheet: $variables.showSettings, startHex: spaceStart, endHex: spaceEnd)
                                 .presentationSizing(.form)
                         } else {
-                            NewSettings(presentSheet: $variables.showSettings, startHex: (!spaces[selectedSpaceIndex].startHex.isEmpty) ? spaces[selectedSpaceIndex].startHex: startHex, endHex: (!spaces[selectedSpaceIndex].startHex.isEmpty) ? spaces[selectedSpaceIndex].endHex: endHex)
+                            NewSettings(presentSheet: $variables.showSettings, startHex: spaceStart, endHex: spaceEnd)
                         }
                     }
                     
@@ -118,7 +121,7 @@ struct TabbedPagedSidebar: View {
                     
                     Menu(content: {
                         Button(action: {
-                            modelContext.insert(SpaceStorage(spaceIndex: spaces.count, spaceName: "Untitled \(spaces.count)", spaceIcon: "scribble.variable", favoritesUrls: [], pinnedUrls: [], tabUrls: []))
+                            modelContext.insert(SpaceStorage(spaceIndex: (spaces.map(\.spaceIndex).max() ?? -1) + 1, spaceName: "Untitled \(spaces.count)", spaceIcon: "scribble.variable", favoritesUrls: [], pinnedUrls: [], tabUrls: []))
                         }, label: {
                             Label("Add Space", systemImage: "square.badge.plus")
                         })

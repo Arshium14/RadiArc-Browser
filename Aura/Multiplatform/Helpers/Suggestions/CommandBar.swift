@@ -18,11 +18,11 @@ struct CommandBar: View {
     
     @Binding var commandBarText: String
     @State var suggestedSearch = ""
-    
+
     @State var selectedSuggestion = -1
-    
-    @State var xmlString = ""
-    
+
+    @State private var suggestionRequestID = UUID()
+
     @State var suggestions = [] as [String]
     
     @State var hoverSuggestion = ""
@@ -232,6 +232,7 @@ struct CommandBar: View {
                                     TextField(text: selectedSuggestion == -1 ? $commandBarText: $suggestedSearch) {
                                         Label(selectedSuggestion == -1 ? "Search or Enter URL": "", systemImage: "magnifyingglass")
                                     }.onKeyPress(.downArrow, action: {
+                                        guard !suggestions.isEmpty else { return KeyPress.Result.handled }
                                         if selectedSuggestion <= (suggestions.count - 2) {
                                             selectedSuggestion += 1
                                             
@@ -251,6 +252,7 @@ struct CommandBar: View {
                                         return KeyPress.Result.handled
                                     })
                                     .onKeyPress(.upArrow, action: {
+                                        guard !suggestions.isEmpty else { return KeyPress.Result.handled }
                                         if selectedSuggestion >= 0 {
                                             selectedSuggestion -= 1
                                             
@@ -288,15 +290,18 @@ struct CommandBar: View {
                                     .padding(20)
                                     .onChange(of: commandBarText, perform: { value in
                                         if !searchSubmitted {
+                                            selectedSuggestion = -1
+                                            let requestID = UUID()
+                                            suggestionRequestID = requestID
+                                            let query = value
                                             Task {
-                                                await fetchXML(searchRequest: commandBarText)
-                                            }
-                                            
-                                            Task {
-                                                await suggestions = formatXML(from: xmlString)
+                                                let xml = await fetchXML(searchRequest: query)
+                                                if suggestionRequestID == requestID {
+                                                    suggestions = formatXML(from: xml)
+                                                }
                                             }
                                         }
-                                        
+
                                     })
                                     .onSubmit {
                                         var newHistory = UserDefaults.standard.stringArray(forKey: "commandBarHistory") ?? ["arc.net", "thebrowser.company", "notion.so", "figma.com", "google.com", "apple.com"]
@@ -350,48 +355,41 @@ struct CommandBar: View {
         }
     }
     
-    func fetchXML(searchRequest: String) {
-        guard let url = URL(string: "https://toolbarqueries.google.com/complete/search?q=\(searchRequest.replacingOccurrences(of: " ", with: "+"))&output=toolbar&hl=en") else {
-            print("Invalid URL")
-            return
+    func fetchXML(searchRequest: String) async -> String {
+        let encoded = searchRequest.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? searchRequest
+        guard let url = URL(string: "https://toolbarqueries.google.com/complete/search?q=\(encoded)&output=toolbar&hl=en") else {
+            return ""
         }
-        
-        URLSession.shared.dataTask(with: url) { data, response, error in
-            guard let data = data, error == nil else {
-                print("Error: \(error?.localizedDescription ?? "Unknown error")")
-                return
-            }
-            
-            if let xmlContent = String(data: data, encoding: .utf8) {
-                DispatchQueue.main.async {
-                    self.xmlString = xmlContent
-                }
-            } else {
-                print("Unable to convert data to string")
-            }
-        }.resume()
+
+        do {
+            let (data, _) = try await URLSession.shared.data(from: url)
+            return String(data: data, encoding: .utf8) ?? ""
+        } catch {
+            print("Suggestion fetch failed: \(error.localizedDescription)")
+            return ""
+        }
     }
-    
+
     func formatXML(from input: String) -> [String] {
         var results = [String]()
-        
+
         // Find all occurrences of 'data="' in the XML string
-        var currentIndex = xmlString.startIndex
-        while let startIndex = xmlString[currentIndex...].range(of: "data=\"")?.upperBound {
-            let remainingSubstring = xmlString[startIndex...]
-            
+        var currentIndex = input.startIndex
+        while let startIndex = input[currentIndex...].range(of: "data=\"")?.upperBound {
+            let remainingSubstring = input[startIndex...]
+
             // Find the end of the attribute value enclosed in quotation marks
             if let endIndex = remainingSubstring.range(of: "\"")?.lowerBound {
-                let attributeValue = xmlString[startIndex..<endIndex]
+                let attributeValue = input[startIndex..<endIndex]
                 results.append(String(attributeValue))
-                
+
                 // Move to the next character after the found attribute value
                 currentIndex = endIndex
             } else {
                 break
             }
         }
-        
+
         return results
     }
 }

@@ -30,7 +30,7 @@ extension WebViewStore {
     public func JSsearchFor(tag: String, value: String? = nil, partial: Bool = true, caseInsensitive: Bool = true, completion: @escaping (Bool) -> Void) {
         let selector = JSselectorComposableString(tag: tag, value: value, partial: partial, caseInsensitive: caseInsensitive)
         let result = "result.length > 0;"
-        JSperformScript(script: selector, result) { completion($0 as! Bool) }
+        JSperformScript(script: selector, result) { completion(($0 as? Bool) ?? false) }
     }
 }
 
@@ -50,7 +50,6 @@ extension WebViewStore {
         
         JSsearchFor(tag: tag, value: value, partial: partial, caseInsensitive: caseInsensitive) { result in
             if result == false {
-                assert(false, "Not found \(tag) or \(String(describing: value))")
                 completion(false)
                 return
             } else {

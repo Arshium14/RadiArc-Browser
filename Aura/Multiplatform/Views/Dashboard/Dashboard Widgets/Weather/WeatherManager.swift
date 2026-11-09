@@ -20,7 +20,8 @@ import WeatherKit
                 return try await WeatherService.shared.weather(for: .init(latitude: latitude, longitude: longitude))
             }.value
         } catch {
-            fatalError("\(error)")
+            weather = nil
+            print("Weather unavailable: \(error.localizedDescription)")
         }
     }
     

@@ -8,21 +8,32 @@
 import SwiftUI
 
 func formatURL(from input: String) -> String {
+    let trimmed = input.trimmingCharacters(in: .whitespacesAndNewlines)
+    guard !trimmed.isEmpty else { return trimmed }
+
     // Check if it's already a URL with a scheme
-    if let url = URL(string: input), url.scheme != nil {
-        return url.absoluteString.hasPrefix("http") ? input : "https://\(input)"
+    if let url = URL(string: trimmed), let scheme = url.scheme?.lowercased() {
+        if scheme == "http" || scheme == "https" || scheme == "aura" || scheme == "about" || scheme == "file" {
+            return trimmed
+        }
+        return "https://\(trimmed)"
     }
-    
+
     // Check if it's a URL without a scheme
-    if let url = URL(string: "https://\(input)"), url.host != nil {
-        if url.absoluteString.contains(".") && !url.absoluteString.contains(" ") {
+    if let url = URL(string: "https://\(trimmed)"), url.host != nil {
+        if trimmed.contains(".") && !trimmed.contains(" ") {
             return url.absoluteString
         }
     }
-    
-    // Assume it's a search term and format it for Google search
-    let searchTerms = input.split(separator: " ").joined(separator: "+")
-    return "\(UserDefaults.standard.string(forKey: "searchEngine") ?? "https://www.google.com/search?q=")\(searchTerms)"
+
+    // Assume it's a search term and format it for the configured search engine
+    let searchEngine = UserDefaults.standard.string(forKey: "searchEngine") ?? "https://www.google.com/search?q="
+    let allowed = CharacterSet.urlQueryAllowed.subtracting(CharacterSet(charactersIn: "&=+#"))
+    let searchTerms = trimmed
+        .components(separatedBy: " ")
+        .map { $0.addingPercentEncoding(withAllowedCharacters: allowed) ?? $0 }
+        .joined(separator: "+")
+    return "\(searchEngine)\(searchTerms)"
 }
 
 

@@ -53,20 +53,6 @@ struct iPad_browserApp: App {
     @NSApplicationDelegateAdaptor(CustomAppDelegate.self) var appDelegate
     #endif
     
-    var sharedModelContainer: ModelContainer = {
-        let schema = Schema([
-            SpaceStorage.self,
-        ])
-        let modelConfiguration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
-
-        do {
-            var container = try ModelContainer(for: schema, configurations: [modelConfiguration])
-            return container
-        } catch {
-            fatalError("Could not create ModelContainer: \(error)")
-        }
-    }()
-    
     @StateObject var variables = ObservableVariables()
     @StateObject var settings = SettingsVariables()
     @StateObject var manager =  WebsiteManager()

@@ -182,7 +182,7 @@ struct ContentView: View {
                                                     }
                                                     
                                                     if variables.auraTab == "dashboard" && manager.selectedWebView == nil {
-                                                        Dashboard(startHexSpace: spaces[selectedSpaceIndex].startHex, endHexSpace: spaces[selectedSpaceIndex].endHex)
+                                                        Dashboard(startHexSpace: selectedSpaceIndex < spaces.count ? spaces[selectedSpaceIndex].startHex : startHex, endHexSpace: selectedSpaceIndex < spaces.count ? spaces[selectedSpaceIndex].endHex : endHex)
                                                             .cornerRadius(10)
                                                             .clipped()
                                                     }
@@ -800,14 +800,41 @@ struct ContentView: View {
                             }
                             .onOpenURL { url in
                                 if url.absoluteString.starts(with: "aura://") {
+                                    if url.absoluteString.contains("dashboard") {
+                                        manager.selectedWebView = nil
+                                        variables.auraTab = "dashboard"
+                                    }
+                                    else if url.absoluteString.contains("history") {
+                                        manager.selectedWebView = nil
+                                        variables.auraTab = "history"
+                                    }
+                                    else if url.absoluteString.contains("settings") {
+                                        variables.showSettings = true
+                                    }
                                 }
                                 else {
-                                    manager.selectOrAddWebView(urlString: url.absoluteString)
+                                    guard !spaces.isEmpty else { return }
+                                    let spaceIndex = min(selectedSpaceIndex, spaces.count - 1)
+                                    let urlString = url.absoluteString
+
+                                    variables.auraTab = ""
+
+                                    var temporaryUrls = spaces[spaceIndex].tabUrls
+                                    let tabIndex: Int
+                                    if let existingIndex = temporaryUrls.firstIndex(of: urlString) {
+                                        tabIndex = existingIndex
+                                    } else {
+                                        temporaryUrls.append(urlString)
+                                        spaces[spaceIndex].tabUrls = temporaryUrls
+                                        try? modelContext.save()
+                                        tabIndex = temporaryUrls.count - 1
+                                    }
+
+                                    manager.selectedTabIndex = tabIndex
                                     manager.selectedTabLocation = .tabs
-                                    manager.selectedTabIndex = 0
+                                    manager.selectOrAddWebView(urlString: urlString)
+                                    variables.searchInSidebar = unformatURL(url: urlString)
                                 }
-                                print("Url:")
-                                print(url)
                             }
                             //MARK: - Tabbar
                             if variables.tabBarShown {
@@ -820,7 +847,17 @@ struct ContentView: View {
                                         
                                         if !variables.newTabSearch.starts(with: "aura://") {
                                             variables.auraTab = ""
-                                            
+
+                                            guard !spaces.isEmpty else {
+                                                variables.tabBarShown = false
+                                                variables.commandBarSearchSubmitted = false
+                                                variables.newTabSearch = ""
+                                                return
+                                            }
+                                            if selectedSpaceIndex >= spaces.count {
+                                                selectedSpaceIndex = spaces.count - 1
+                                            }
+
                                             print(variables.newTabSearch)
                                             
                                             var temporaryUrls = spaces[selectedSpaceIndex].tabUrls
@@ -881,8 +918,10 @@ struct ContentView: View {
                                         manager.fetchTitlesIfNeeded(for: [formatURL(from: variables.newTabSearch)])
                                         
                                         let temporaryNewTabSearch = variables.newTabSearch
-                                        DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
-                                            variables.history.addItem(HistoryItem(title: manager.linksWithTitles[formatURL(from: temporaryNewTabSearch)], websiteURL: formatURL(from: temporaryNewTabSearch), date: Date.now))
+                                        if settings.historyEnabled {
+                                            DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+                                                variables.history.addItem(HistoryItem(title: manager.linksWithTitles[formatURL(from: temporaryNewTabSearch)], websiteURL: formatURL(from: temporaryNewTabSearch), date: Date.now))
+                                            }
                                         }
                                         
                                         variables.tabBarShown = false
@@ -911,7 +950,7 @@ struct ContentView: View {
                         .padding(settings.horizontalTabBar ? [.leading, .trailing, .bottom]: settings.sidebarLeft ? [.trailing, .bottom, .top]: [.leading, .bottom, .top], settings.showBorder ? 20: 0)
                         .onAppear() {
                             DispatchQueue.main.asyncAfter(deadline: .now() + 4.6, execute: {
-                                
+                                launchingAnimation = false
                             })
                         }
                         .onChange(of: selectedSpaceIndex, {
@@ -926,10 +965,35 @@ struct ContentView: View {
                                 if selectedSpaceIndex < spaces.count {
                                     if !spaces[selectedSpaceIndex].startHex.isEmpty && !spaces[selectedSpaceIndex].endHex.isEmpty {
                                         startHex = spaces[selectedSpaceIndex].startHex
-                                        endHex = spaces[selectedSpaceIndex].startHex
-                                        
+                                        endHex = spaces[selectedSpaceIndex].endHex
+
                                         variables.startColor = Color(hex: spaces[selectedSpaceIndex].startHex)
                                         variables.endColor = Color(hex: spaces[selectedSpaceIndex].endHex)
+                                    }
+
+                                    let space = spaces[selectedSpaceIndex]
+                                    if let lastTab = space.tabUrls.last {
+                                        manager.selectedTabLocation = .tabs
+                                        manager.selectedTabIndex = space.tabUrls.count - 1
+                                        manager.selectOrAddWebView(urlString: lastTab)
+                                        variables.searchInSidebar = unformatURL(url: lastTab)
+                                    }
+                                    else if let lastPinned = space.pinnedUrls.last {
+                                        manager.selectedTabLocation = .pinned
+                                        manager.selectedTabIndex = space.pinnedUrls.count - 1
+                                        manager.selectOrAddWebView(urlString: lastPinned)
+                                        variables.searchInSidebar = unformatURL(url: lastPinned)
+                                    }
+                                    else if let firstFavorite = space.favoritesUrls.first {
+                                        manager.selectedTabLocation = .favorites
+                                        manager.selectedTabIndex = 0
+                                        manager.selectOrAddWebView(urlString: firstFavorite)
+                                        variables.searchInSidebar = unformatURL(url: firstFavorite)
+                                    }
+                                    else {
+                                        manager.selectedWebView = nil
+                                        manager.selectedTabIndex = -1
+                                        variables.searchInSidebar = ""
                                     }
                                 }
                                 
@@ -947,7 +1011,7 @@ struct ContentView: View {
                             if selectedSpaceIndex < spaces.count {
                                 if !spaces[selectedSpaceIndex].startHex.isEmpty && !spaces[selectedSpaceIndex].endHex.isEmpty {
                                     startHex = spaces[selectedSpaceIndex].startHex
-                                    endHex = spaces[selectedSpaceIndex].startHex
+                                    endHex = spaces[selectedSpaceIndex].endHex
                                     
                                     variables.startColor = Color(hex: spaces[selectedSpaceIndex].startHex)
                                     variables.endColor = Color(hex: spaces[selectedSpaceIndex].endHex)
@@ -975,6 +1039,7 @@ struct ContentView: View {
             if launchingAnimation && settings.launchAnimation {
                 Launch_Animation()
                     .ignoresSafeArea()
+                    .allowsHitTesting(false)
             }
             
         }.environmentObject(variables)
@@ -1103,92 +1168,98 @@ struct ContentView: View {
     }
     
     func favoriteRemoveTab(at index: Int) {
+        guard manager.selectedSpaceIndex >= 0 && manager.selectedSpaceIndex < spaces.count else { return }
         var temporaryUrls = spaces[manager.selectedSpaceIndex].favoritesUrls
-        
-        if index == manager.selectedTabIndex && manager.selectedTabLocation == .favorites {
-            if temporaryUrls.count > 1 { // Check if there's more than one tab
-                if index == 0 { // If the first tab is being deleted, select the next one
-                    manager.selectedTabIndex = 1
-                } else { // Otherwise, select the previous one
-                    manager.selectedTabIndex = index - 1
-                }
-            } else { // If it's the only tab, set the selectedWebView to nil
-                manager.selectedWebView = nil
-                manager.selectedTabIndex = -1
-            }
-        }
-        
+        guard index >= 0 && index < temporaryUrls.count else { return }
+
+        let wasSelected = index == manager.selectedTabIndex && manager.selectedTabLocation == .favorites
+
         temporaryUrls.remove(at: index)
-        
         spaces[manager.selectedSpaceIndex].favoritesUrls = temporaryUrls
-        
-        do {
-            try modelContext.save()
-        } catch {
-            print(error.localizedDescription)
-        }
-    }
-    
-    func pinnedRemoveTab(at index: Int) {
-        var temporaryUrls = spaces[manager.selectedSpaceIndex].pinnedUrls
-        
-        temporaryUrls.remove(at: index)
-        
-        spaces[manager.selectedSpaceIndex].pinnedUrls = temporaryUrls
-        
-        if index == manager.selectedTabIndex && manager.selectedTabLocation == .pinned {
-            if temporaryUrls.count > 1 { // Check if there's more than one tab
-                if index == 0 { // If the first tab is being deleted, select the next one
-                    manager.selectedTabIndex = 1
-                } else { // Otherwise, select the previous one
-                    manager.selectedTabIndex = index - 1
-                }
-            } else { // If it's the only tab, set the selectedWebView to nil
+
+        if wasSelected {
+            if temporaryUrls.isEmpty {
                 manager.selectedWebView = nil
                 manager.selectedTabIndex = -1
+                variables.searchInSidebar = ""
+            } else {
+                let newIndex = min(index, temporaryUrls.count - 1)
+                manager.selectedTabIndex = newIndex
+                manager.selectOrAddWebView(urlString: temporaryUrls[newIndex])
+                variables.searchInSidebar = unformatURL(url: temporaryUrls[newIndex])
             }
+        } else if manager.selectedTabLocation == .favorites && index < manager.selectedTabIndex {
+            manager.selectedTabIndex -= 1
         }
-        
+
         do {
             try modelContext.save()
         } catch {
             print(error.localizedDescription)
         }
     }
-    
-    func removeTab(at index: Int) {
-        var temporaryUrls = spaces[manager.selectedSpaceIndex].tabUrls
-        
-        print("Removing Tab:")
-        print(temporaryUrls)
-        
+
+    func pinnedRemoveTab(at index: Int) {
+        guard manager.selectedSpaceIndex >= 0 && manager.selectedSpaceIndex < spaces.count else { return }
+        var temporaryUrls = spaces[manager.selectedSpaceIndex].pinnedUrls
+        guard index >= 0 && index < temporaryUrls.count else { return }
+
+        let wasSelected = index == manager.selectedTabIndex && manager.selectedTabLocation == .pinned
+
         temporaryUrls.remove(at: index)
-        
-        print(temporaryUrls)
-        
-        spaces[manager.selectedSpaceIndex].tabUrls = temporaryUrls
-        
-        print(spaces[manager.selectedSpaceIndex].tabUrls)
-        
-        if index == manager.selectedTabIndex && manager.selectedTabLocation == .tabs {
-            if temporaryUrls.count > 1 { // Check if there's more than one tab
-                if index == 0 { // If the first tab is being deleted, select the next one
-                    manager.selectedTabIndex = 1
-                } else { // Otherwise, select the previous one
-                    manager.selectedTabIndex = index - 1
-                }
-            } else { // If it's the only tab, set the selectedWebView to nil
-                
+        spaces[manager.selectedSpaceIndex].pinnedUrls = temporaryUrls
+
+        if wasSelected {
+            if temporaryUrls.isEmpty {
                 manager.selectedWebView = nil
+                manager.selectedTabIndex = -1
+                variables.searchInSidebar = ""
+            } else {
+                let newIndex = min(index, temporaryUrls.count - 1)
+                manager.selectedTabIndex = newIndex
+                manager.selectOrAddWebView(urlString: temporaryUrls[newIndex])
+                variables.searchInSidebar = unformatURL(url: temporaryUrls[newIndex])
             }
+        } else if manager.selectedTabLocation == .pinned && index < manager.selectedTabIndex {
+            manager.selectedTabIndex -= 1
         }
-        
+
         do {
             try modelContext.save()
         } catch {
             print(error.localizedDescription)
         }
-        
-        print("Done")
+    }
+
+    func removeTab(at index: Int) {
+        guard manager.selectedSpaceIndex >= 0 && manager.selectedSpaceIndex < spaces.count else { return }
+        var temporaryUrls = spaces[manager.selectedSpaceIndex].tabUrls
+        guard index >= 0 && index < temporaryUrls.count else { return }
+
+        let wasSelected = index == manager.selectedTabIndex && manager.selectedTabLocation == .tabs
+
+        temporaryUrls.remove(at: index)
+        spaces[manager.selectedSpaceIndex].tabUrls = temporaryUrls
+
+        if wasSelected {
+            if temporaryUrls.isEmpty {
+                manager.selectedWebView = nil
+                manager.selectedTabIndex = -1
+                variables.searchInSidebar = ""
+            } else {
+                let newIndex = min(index, temporaryUrls.count - 1)
+                manager.selectedTabIndex = newIndex
+                manager.selectOrAddWebView(urlString: temporaryUrls[newIndex])
+                variables.searchInSidebar = unformatURL(url: temporaryUrls[newIndex])
+            }
+        } else if manager.selectedTabLocation == .tabs && index < manager.selectedTabIndex {
+            manager.selectedTabIndex -= 1
+        }
+
+        do {
+            try modelContext.save()
+        } catch {
+            print(error.localizedDescription)
+        }
     }
 }

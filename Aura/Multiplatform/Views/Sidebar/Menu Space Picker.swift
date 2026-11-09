@@ -30,7 +30,7 @@ struct MenuSpacePicker: View {
     
     var body: some View {
         Menu {
-            ForEach(0..<(spaces.count), id:\.self) { space in
+            ForEach(spaces.indices, id:\.self) { space in
                 Button {
                     currentSpace = String(spaces[space].spaceName)
                     

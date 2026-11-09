@@ -56,8 +56,8 @@ class KeyboardShortcuts: ObservableObject {
             
         }
         
-        let keyEquivalentCharacter = KeyEquivalent(Character(regularKey))
-        
+        let keyEquivalentCharacter = KeyEquivalent(regularKey.first ?? "t")
+
         return KeyboardShortcut(keyEquivalentCharacter, modifiers: modifiers)
     }
 }

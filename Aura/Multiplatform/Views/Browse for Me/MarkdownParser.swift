@@ -95,7 +95,7 @@ struct MarkdownView: View {
     
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            ForEach(0..<elements.count, id: \.self) { index in
+            ForEach(elements.indices, id: \.self) { index in
                 switch elements[index] {
                 case .heading(let level, let text):
                     HeadingView(level: level, text: text)

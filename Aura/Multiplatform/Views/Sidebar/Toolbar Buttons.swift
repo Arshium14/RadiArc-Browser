@@ -223,9 +223,11 @@ struct ToolbarButtonsView: View {
                 }
         }
         .onAppear() {
-            let spaceForColor = spaces[selectedSpaceIndex]
-            variables.startColor = Color(hex: spaceForColor.startHex)
-            variables.endColor = Color(hex: spaceForColor.endHex)
+            if selectedSpaceIndex >= 0 && selectedSpaceIndex < spaces.count {
+                let spaceForColor = spaces[selectedSpaceIndex]
+                variables.startColor = Color(hex: spaceForColor.startHex)
+                variables.endColor = Color(hex: spaceForColor.endHex)
+            }
         }
     }
 }

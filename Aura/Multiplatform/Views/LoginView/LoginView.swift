@@ -38,10 +38,9 @@ struct OnboardingView: View {
     var body: some View {
         GeometryReader { geo in
             ZStack {
-                if networkMonitor.isConnected {
-                    ContentView()
-                }
-                else {
+                ContentView()
+
+                if !networkMonitor.isConnected && !ignoreNoWifi {
                     NoWifi(ignore: $ignoreNoWifi)
                 }
                 if !onboardingDone {

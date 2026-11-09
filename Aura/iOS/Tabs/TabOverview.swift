@@ -148,12 +148,12 @@ struct TabOverview: View {
                             }
                         }.rotationEffect(Angle(degrees: 180))
                             .onChange(of: mobileTabs.newTabSearch, perform: { value in
+                                let query = value
                                 Task {
-                                    await fetchXML(searchRequest: mobileTabs.newTabSearch)
-                                }
-                                
-                                Task {
-                                    await mobileTabs.suggestions = formatXML(from: mobileTabs.xmlString)
+                                    let xml = await fetchXML(searchRequest: query)
+                                    if mobileTabs.newTabSearch == query {
+                                        mobileTabs.suggestions = formatXML(from: xml)
+                                    }
                                 }
                             })
                             .onChange(of: newTabFocus, perform: { newValue in
@@ -720,51 +720,44 @@ struct TabOverview: View {
         })
     }
     
-    func fetchXML(searchRequest: String) {
-        guard let url = URL(string: "https://toolbarqueries.google.com/complete/search?q=\(searchRequest.replacingOccurrences(of: " ", with: "+"))&output=toolbar&hl=en") else {
-            print("Invalid URL")
-            return
+    func fetchXML(searchRequest: String) async -> String {
+        let encoded = searchRequest.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? searchRequest
+        guard let url = URL(string: "https://toolbarqueries.google.com/complete/search?q=\(encoded)&output=toolbar&hl=en") else {
+            return ""
         }
-        
-        URLSession.shared.dataTask(with: url) { data, response, error in
-            guard let data = data, error == nil else {
-                print("Error: \(error?.localizedDescription ?? "Unknown error")")
-                return
-            }
-            
-            if let xmlContent = String(data: data, encoding: .utf8) {
-                DispatchQueue.main.async {
-                    self.mobileTabs.xmlString = xmlContent
-                }
-            } else {
-                print("Unable to convert data to string")
-            }
-        }.resume()
+
+        do {
+            let (data, _) = try await URLSession.shared.data(from: url)
+            return String(data: data, encoding: .utf8) ?? ""
+        } catch {
+            print("Suggestion fetch failed: \(error.localizedDescription)")
+            return ""
+        }
     }
     // More APIs for Search suggestions. Implement in the future
     // https://duckduckgo.com/ac/?q=YOUR_QUERY_HERE&type=list
     // https://api.bing.com/osjson.aspx?query=YOUR_QUERY_HERE
-    
+
     func formatXML(from input: String) -> [String] {
         var results = [String]()
-        
+
         // Find all occurrences of 'data="' in the XML string
-        var currentIndex = mobileTabs.xmlString.startIndex
-        while let startIndex = mobileTabs.xmlString[currentIndex...].range(of: "data=\"")?.upperBound {
-            let remainingSubstring = mobileTabs.xmlString[startIndex...]
-            
+        var currentIndex = input.startIndex
+        while let startIndex = input[currentIndex...].range(of: "data=\"")?.upperBound {
+            let remainingSubstring = input[startIndex...]
+
             // Find the end of the attribute value enclosed in quotation marks
             if let endIndex = remainingSubstring.range(of: "\"")?.lowerBound {
-                let attributeValue = mobileTabs.xmlString[startIndex..<endIndex]
+                let attributeValue = input[startIndex..<endIndex]
                 results.append(String(attributeValue))
-                
+
                 // Move to the next character after the found attribute value
                 currentIndex = endIndex
             } else {
                 break
             }
         }
-        
+
         return results
     }
 }

@@ -107,11 +107,6 @@ public struct WebView: UIViewRepresentable {
     public class Coordinator: NSObject, WKUIDelegate, WKNavigationDelegate, WKDownloadDelegate {
         var parent: WebView
 
-        @StateObject var variables = ObservableVariables()
-        @StateObject var manager = WebsiteManager()
-
-        var spaces = [SpaceStorage]()
-
         var container: ModelContainer = {
             let schema = Schema([
                 SpaceStorage.self,
@@ -129,15 +124,20 @@ public struct WebView: UIViewRepresentable {
 
         init(_ parent: WebView) {
             self.parent = parent
-            
+
             context = ModelContext(container)
-            
-            do {
-                let descriptor = FetchDescriptor<SpaceStorage>()
-                spaces = try container.mainContext.fetch(descriptor)
-            } catch {
-                print("Failed to fetch spaces: \(error)")
+        }
+
+        public func webView(
+            _ webView: WKWebView,
+            createWebViewWith configuration: WKWebViewConfiguration,
+            for navigationAction: WKNavigationAction,
+            windowFeatures: WKWindowFeatures
+        ) -> WKWebView? {
+            if navigationAction.targetFrame == nil, let url = navigationAction.request.url {
+                webView.load(URLRequest(url: url))
             }
+            return nil
         }
 
         public func webView(
@@ -156,6 +156,22 @@ public struct WebView: UIViewRepresentable {
             print("Download started")
         }
 
+        private func uniqueDestination(for suggestedFilename: String) -> URL {
+            let fileManager = FileManager.default
+            let documentsDirectory = fileManager.urls(for: .documentDirectory, in: .userDomainMask).first!
+            let filename = suggestedFilename.isEmpty ? "download" : suggestedFilename
+            let base = (filename as NSString).deletingPathExtension
+            let ext = (filename as NSString).pathExtension
+            var destination = documentsDirectory.appendingPathComponent(filename)
+            var counter = 1
+            while fileManager.fileExists(atPath: destination.path) {
+                let name = ext.isEmpty ? "\(base) \(counter)" : "\(base) \(counter).\(ext)"
+                destination = documentsDirectory.appendingPathComponent(name)
+                counter += 1
+            }
+            return destination
+        }
+
         public func webView(
             _ webView: WKWebView,
             download _download: WKDownload,
@@ -163,16 +179,11 @@ public struct WebView: UIViewRepresentable {
             suggestedFilename: String,
             completionHandler: @escaping @MainActor @Sendable (URL?) -> Void
         ) {
-            let fileManager = FileManager.default
-            let documentsDirectory = fileManager.urls(for: .documentDirectory, in: .userDomainMask).first!
-            let destinationURL = documentsDirectory.appendingPathComponent(suggestedFilename)
-            completionHandler(destinationURL)
+            completionHandler(uniqueDestination(for: suggestedFilename))
         }
 
         public func download(_ download: WKDownload, decideDestinationUsing response: URLResponse, suggestedFilename: String) async -> URL? {
-            let fileManager = FileManager.default
-            let documentsDirectory = fileManager.urls(for: .documentDirectory, in: .userDomainMask).first!
-            return documentsDirectory.appendingPathComponent(suggestedFilename)
+            return uniqueDestination(for: suggestedFilename)
         }
 
         public func webView(_ webView: WKWebView, download _download: WKDownload, didFailWithError error: Error, resumeData: Data?) {
@@ -210,6 +221,7 @@ public struct WebView: UIViewRepresentable {
             }
             
             var openIn: [UIMenuElement] = []
+            let spaces = (try? container.mainContext.fetch(FetchDescriptor<SpaceStorage>())) ?? []
             for space in spaces {
                 let moveAction = UIAction(title: space.spaceName, image: UIImage(systemName: space.spaceIcon)) { _ in
                     guard let url = elementInfo.linkURL else { return }

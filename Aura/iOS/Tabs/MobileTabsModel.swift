@@ -36,8 +36,7 @@ class MobileTabsModel: ObservableObject {
     @Published var fullScreenWebView = false
     
     @Published var suggestions = [] as [String]
-    @Published var xmlString = ""
-    
+
     @Published var offsetTest = 0 as CGFloat
     
     @Published var tabOffset = CGSize.zero

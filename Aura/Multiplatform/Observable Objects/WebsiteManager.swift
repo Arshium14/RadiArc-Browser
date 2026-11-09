@@ -13,58 +13,62 @@ import LinkPresentation
 
 class WebsiteManager: ObservableObject {
     @Published var webViewStores: [String: WebViewStore] = [:]
-    
+
+    private var storeOrder: [String] = []
+
     @Published var tabFrames: [Int: CGRect] = [:]
-    
+
     @Published var selectedWebView: WebViewStore?
-    
+
     func addWebViewStore(id: String, webViewStore: WebViewStore) {
         webViewStores[id] = webViewStore
+        if !storeOrder.contains(id) {
+            storeOrder.append(id)
+        }
     }
-    
+
     func getWebViewStore(id: String) -> WebViewStore? {
         return webViewStores[id]
     }
-    
+
     func selectOrAddWebView(urlString: String) {
-        if let existingStore = webViewStores.values.first(where: { $0.webView.url?.absoluteString == urlString }) {
+        if let existingStore = webViewStores[urlString] ?? webViewStores.values.first(where: { $0.webView.url?.absoluteString == urlString }) {
             // Set the found WebViewStore as the selected WebView
             selectedWebView = existingStore
             selectedWebView?.webView.allowsBackForwardNavigationGestures = true
+            existingStore.loadIfNeeded(url: URL(string: urlString) ?? URL(string: "https://example.com")!)
         } else {
             // Create a new WebViewStore if not found and add it to the dictionary
             let newWebViewStore = WebViewStore()
             newWebViewStore.webView.allowsBackForwardNavigationGestures = true
-            //newWebViewStore.webView.customUserAgent = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Safari/605.1.15"
             newWebViewStore.webView.customUserAgent = UserDefaults.standard.string(forKey: "userAgent") ?? "Mozilla/5.0 (iPad; CPU OS 18_5_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) CriOS/136.0.7103.91 Mobile/15E148 Safari/604.1"
-            
-            
+
+
             newWebViewStore.loadIfNeeded(url: URL(string: urlString) ?? URL(string: "https://example.com")!)
             webViewStores[urlString] = newWebViewStore
-            
-            let customMenu = UIMenu(title: "Custom Actions", image: nil, identifier: UIMenu.Identifier("com.yourapp.customMenu"), options: .displayInline, children: [
-                UIAction(title: "Custom Action 1", image: UIImage(systemName: "star"), handler: { _ in
-                    // Handle custom action 1
-                    print("Custom action 1 tapped")
-                }),
-                UIAction(title: "Custom Action 2", image: UIImage(systemName: "heart"), handler: { _ in
-                    // Handle custom action 2
-                    print("Custom action 2 tapped")
-                })
-            ])
-            
+            storeOrder.append(urlString)
+
             // Add the refresh control
             addRefreshControl(to: newWebViewStore.webView.scrollView)
-            
+
             selectedWebView = newWebViewStore
-            
+
             if UserDefaults.standard.bool(forKey: "adBlockEnabled") {
                 loadContentBlockingRules(selectedWebView?.webView ?? WKWebView())
             }
         }
-        
-        if webViewStores.count > Int(UserDefaults.standard.double(forKey: "preloadingWebsites")) {
-            webViewStores = Dictionary(webViewStores.keys.prefix(Int(UserDefaults.standard.double(forKey: "preloadingWebsites"))).map { ($0, webViewStores[$0]!) }, uniquingKeysWith: { first, _ in first })
+
+        let storedLimit = UserDefaults.standard.double(forKey: "preloadingWebsites")
+        let limit = storedLimit > 0 ? Int(storedLimit) : 15
+
+        if webViewStores.count > limit {
+            for key in storeOrder {
+                guard webViewStores.count > limit else { break }
+                if let store = webViewStores[key], store !== selectedWebView {
+                    webViewStores.removeValue(forKey: key)
+                }
+            }
+            storeOrder.removeAll { webViewStores[$0] == nil }
         }
     }
     

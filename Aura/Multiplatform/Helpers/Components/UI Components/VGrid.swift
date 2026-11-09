@@ -37,7 +37,7 @@ struct VGrid<Element, GridCell>: View where GridCell: View {
         Grid {
             ForEach(Array(stride(from: 0, to: self.array.count, by: self.numberOfColumns)), id: \.self) { index in
                 GridRow {
-                    ForEach(0..<self.numberOfColumns, id: \.self) { j in
+                    ForEach(Array(0..<self.numberOfColumns), id: \.self) { j in
                         if let element = self.array.getElementAt(index: index + j) {
                             self.gridCell(element)
                         }
@@ -66,7 +66,7 @@ struct IntVGrid<GridCell>: View where GridCell: View {
         Grid {
             ForEach(Array(stride(from: 0, to: self.itemCount, by: self.numberOfColumns)), id: \.self) { rowIndex in
                 GridRow {
-                    ForEach(rowIndex..<min(rowIndex + self.numberOfColumns, self.itemCount), id: \.self) { columnIndex in
+                    ForEach(Array(rowIndex..<min(rowIndex + self.numberOfColumns, self.itemCount)), id: \.self) { columnIndex in
                         self.gridCell(columnIndex)
                     }
                 }

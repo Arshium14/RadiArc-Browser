@@ -93,7 +93,6 @@
 		B98256CE2BD2E38D00F997F5 /* ThreeDots.swift in Sources */ = {isa = PBXBuildFile; fileRef = B98256CD2BD2E38D00F997F5 /* ThreeDots.swift */; };
 		B98256D22BD2E40C00F997F5 /* Toolbar Buttons.swift in Sources */ = {isa = PBXBuildFile; fileRef = B98256D12BD2E40C00F997F5 /* Toolbar Buttons.swift */; };
 		B98256D42BD2E78100F997F5 /* Themes.swift in Sources */ = {isa = PBXBuildFile; fileRef = B98256D32BD2E78100F997F5 /* Themes.swift */; };
-		B98953A32AABCF7200EE3B42 /* GoogleService-Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = B98953A22AABCF7200EE3B42 /* GoogleService-Info.plist */; };
 		B98953A62AABE3CB00EE3B42 /* Hex.swift in Sources */ = {isa = PBXBuildFile; fileRef = B98953A52AABE3CB00EE3B42 /* Hex.swift */; };
 		B98953A82AAC1F4B00EE3B42 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B98953A72AAC1F4B00EE3B42 /* ContentView.swift */; };
 		B98953AA2AAD686100EE3B42 /* LoginView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B98953A92AAD686100EE3B42 /* LoginView.swift */; };
@@ -228,7 +227,6 @@
 		B98256CD2BD2E38D00F997F5 /* ThreeDots.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThreeDots.swift; sourceTree = "<group>"; };
 		B98256D12BD2E40C00F997F5 /* Toolbar Buttons.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Toolbar Buttons.swift"; sourceTree = "<group>"; };
 		B98256D32BD2E78100F997F5 /* Themes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Themes.swift; sourceTree = "<group>"; };
-		B98953A22AABCF7200EE3B42 /* GoogleService-Info.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; path = "GoogleService-Info.plist"; sourceTree = "<group>"; };
 		B98953A42AABD71300EE3B42 /* iPad-browser-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = "iPad-browser-Info.plist"; sourceTree = SOURCE_ROOT; };
 		B98953A52AABE3CB00EE3B42 /* Hex.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Hex.swift; sourceTree = "<group>"; };
 		B98953A72AAC1F4B00EE3B42 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
@@ -606,7 +604,6 @@
 				B95B19E42AABBEE00013AC79 /* Aura_App.swift */,
 				B98256C72BD2A87200F997F5 /* iPad browser.entitlements */,
 				B98953A42AABD71300EE3B42 /* iPad-browser-Info.plist */,
-				B98953A22AABCF7200EE3B42 /* GoogleService-Info.plist */,
 				B94ADB1B2C3EDF0A0054899D /* Multiplatform */,
 				B94ADB1A2C3EDF020054899D /* VisionOS */,
 				B94ADB192C3EDEFC0054899D /* iOS */,
@@ -924,7 +921,6 @@
 			files = (
 				B9272D3D2C250CDD00B014D8 /* Adaway.json in Resources */,
 				B9FE53FD2BC8DFAC008E0434 /* Launch Screen.storyboard in Resources */,
-				B98953A32AABCF7200EE3B42 /* GoogleService-Info.plist in Resources */,
 				B9E474202C17EA800098C7C6 /* TestPlan.xctestplan in Resources */,
 				B94CA9232C28E29700AD3921 /* Settings Images.xcassets in Resources */,
 				B9230FFA2BBD36740032C950 /* TopDomains.json in Resources */,

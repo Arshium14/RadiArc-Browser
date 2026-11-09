@@ -491,7 +491,7 @@ struct SidebarSpaceParameter: View {
                         
                     }.padding(10)
                     
-                    ForEach(0..<spaces[currentSelectedSpaceIndex].pinnedUrls.count, id: \.self) { tabIndex in
+                    ForEach(spaces[currentSelectedSpaceIndex].pinnedUrls.indices, id: \.self) { tabIndex in
                         VStack {
                             if tabIndex < draggedItemIndex ?? 0 {
                                 if currentHoverIndex == tabIndex && manager.dragTabLocation == .pinned {
@@ -977,22 +977,35 @@ struct SidebarSpaceParameter: View {
                         DispatchQueue.main.asyncAfter(deadline: .now() + 0.2, execute: {
                             let newUrl = manager.selectedWebView?.webView.url?.absoluteString ?? ""
                             variables.searchInSidebar = newUrl
-                            
-                            if manager.selectedWebView != nil {
+
+                            if manager.selectedWebView != nil && currentSelectedSpaceIndex == selectedSpaceIndex && selectedSpaceIndex < spaces.count && !newUrl.isEmpty {
+                                let tabIndex = manager.selectedTabIndex
                                 if manager.selectedTabLocation == .pinned {
-                                    spaces[selectedSpaceIndex].pinnedUrls[manager.selectedTabIndex] = newUrl
+                                    if tabIndex >= 0 && tabIndex < spaces[selectedSpaceIndex].pinnedUrls.count {
+                                        spaces[selectedSpaceIndex].pinnedUrls[tabIndex] = newUrl
+                                    }
                                 }
                                 else if manager.selectedTabLocation == .tabs {
-                                    spaces[selectedSpaceIndex].tabUrls[manager.selectedTabIndex] = newUrl
+                                    if tabIndex >= 0 && tabIndex < spaces[selectedSpaceIndex].tabUrls.count {
+                                        spaces[selectedSpaceIndex].tabUrls[tabIndex] = newUrl
+                                    }
                                 }
                                 else if manager.selectedTabLocation == .favorites {
-                                    spaces[selectedSpaceIndex].favoritesUrls[manager.selectedTabIndex] = newUrl
+                                    if tabIndex >= 0 && tabIndex < spaces[selectedSpaceIndex].favoritesUrls.count {
+                                        spaces[selectedSpaceIndex].favoritesUrls[tabIndex] = newUrl
+                                    }
+                                }
+
+                                if settings.historyEnabled && !newUrl.starts(with: "aura://") && variables.history.items.first?.websiteURL != newUrl {
+                                    variables.history.addItem(HistoryItem(title: manager.linksWithTitles[newUrl], websiteURL: newUrl, date: Date.now))
                                 }
                             }
-                            
-                            let fetchTitlesArrays = spaces[selectedSpaceIndex].tabUrls + spaces[selectedSpaceIndex].pinnedUrls + spaces[selectedSpaceIndex].favoritesUrls
-                            
-                            manager.fetchTitlesIfNeeded(for: fetchTitlesArrays)
+
+                            if selectedSpaceIndex < spaces.count {
+                                let fetchTitlesArrays = spaces[selectedSpaceIndex].tabUrls + spaces[selectedSpaceIndex].pinnedUrls + spaces[selectedSpaceIndex].favoritesUrls
+
+                                manager.fetchTitlesIfNeeded(for: fetchTitlesArrays)
+                            }
                         })
                     }
                     
@@ -1259,93 +1272,99 @@ struct SidebarSpaceParameter: View {
     }
     
     func favoriteRemoveTab(at index: Int) {
+        guard currentSelectedSpaceIndex >= 0 && currentSelectedSpaceIndex < spaces.count else { return }
         var temporaryUrls = spaces[currentSelectedSpaceIndex].favoritesUrls
-        
-        if index == manager.selectedTabIndex && manager.selectedTabLocation == .favorites {
-            if temporaryUrls.count > 1 { // Check if there's more than one tab
-                if index == 0 { // If the first tab is being deleted, select the next one
-                    manager.selectedTabIndex = 1
-                } else { // Otherwise, select the previous one
-                    manager.selectedTabIndex = index - 1
-                }
-            } else { // If it's the only tab, set the selectedWebView to nil
-                manager.selectedWebView = nil
-                manager.selectedTabIndex = -1
-            }
-        }
-        
+        guard index >= 0 && index < temporaryUrls.count else { return }
+
+        let wasSelected = index == manager.selectedTabIndex && manager.selectedTabLocation == .favorites
+
         temporaryUrls.remove(at: index)
-        
         spaces[currentSelectedSpaceIndex].favoritesUrls = temporaryUrls
-        
-        do {
-            try modelContext.save()
-        } catch {
-            print(error.localizedDescription)
-        }
-    }
-    
-    func pinnedRemoveTab(at index: Int) {
-        var temporaryUrls = spaces[currentSelectedSpaceIndex].pinnedUrls
-        
-        temporaryUrls.remove(at: index)
-        
-        spaces[currentSelectedSpaceIndex].pinnedUrls = temporaryUrls
-        
-        if index == manager.selectedTabIndex && manager.selectedTabLocation == .pinned {
-            if temporaryUrls.count > 1 { // Check if there's more than one tab
-                if index == 0 { // If the first tab is being deleted, select the next one
-                    manager.selectedTabIndex = 1
-                } else { // Otherwise, select the previous one
-                    manager.selectedTabIndex = index - 1
-                }
-            } else { // If it's the only tab, set the selectedWebView to nil
+
+        if wasSelected {
+            if temporaryUrls.isEmpty {
                 manager.selectedWebView = nil
                 manager.selectedTabIndex = -1
+                variables.searchInSidebar = ""
+            } else {
+                let newIndex = min(index, temporaryUrls.count - 1)
+                manager.selectedTabIndex = newIndex
+                manager.selectOrAddWebView(urlString: temporaryUrls[newIndex])
+                variables.searchInSidebar = unformatURL(url: temporaryUrls[newIndex])
             }
+        } else if manager.selectedTabLocation == .favorites && index < manager.selectedTabIndex {
+            manager.selectedTabIndex -= 1
         }
-        
+
         do {
             try modelContext.save()
         } catch {
             print(error.localizedDescription)
         }
     }
-    
-    func removeTab(at index: Int) {
-        var temporaryUrls = spaces[currentSelectedSpaceIndex].tabUrls
-        
-        print("Removing Tab:")
-        print(temporaryUrls)
-        
+
+    func pinnedRemoveTab(at index: Int) {
+        guard currentSelectedSpaceIndex >= 0 && currentSelectedSpaceIndex < spaces.count else { return }
+        var temporaryUrls = spaces[currentSelectedSpaceIndex].pinnedUrls
+        guard index >= 0 && index < temporaryUrls.count else { return }
+
+        let wasSelected = index == manager.selectedTabIndex && manager.selectedTabLocation == .pinned
+
         temporaryUrls.remove(at: index)
-        
-        print(temporaryUrls)
-        
-        spaces[currentSelectedSpaceIndex].tabUrls = temporaryUrls
-        
-        print(spaces[currentSelectedSpaceIndex].tabUrls)
-        
-        if index == manager.selectedTabIndex && manager.selectedTabLocation == .tabs {
-            if temporaryUrls.count > 1 { // Check if there's more than one tab
-                if index == 0 { // If the first tab is being deleted, select the next one
-                    manager.selectedTabIndex = 1
-                } else { // Otherwise, select the previous one
-                    manager.selectedTabIndex = index - 1
-                }
-            } else { // If it's the only tab, set the selectedWebView to nil
-                
+        spaces[currentSelectedSpaceIndex].pinnedUrls = temporaryUrls
+
+        if wasSelected {
+            if temporaryUrls.isEmpty {
                 manager.selectedWebView = nil
+                manager.selectedTabIndex = -1
+                variables.searchInSidebar = ""
+            } else {
+                let newIndex = min(index, temporaryUrls.count - 1)
+                manager.selectedTabIndex = newIndex
+                manager.selectOrAddWebView(urlString: temporaryUrls[newIndex])
+                variables.searchInSidebar = unformatURL(url: temporaryUrls[newIndex])
             }
+        } else if manager.selectedTabLocation == .pinned && index < manager.selectedTabIndex {
+            manager.selectedTabIndex -= 1
         }
-        
+
         do {
             try modelContext.save()
         } catch {
             print(error.localizedDescription)
         }
-        
-        print("Done")
+    }
+
+    func removeTab(at index: Int) {
+        guard currentSelectedSpaceIndex >= 0 && currentSelectedSpaceIndex < spaces.count else { return }
+        var temporaryUrls = spaces[currentSelectedSpaceIndex].tabUrls
+        guard index >= 0 && index < temporaryUrls.count else { return }
+
+        let wasSelected = index == manager.selectedTabIndex && manager.selectedTabLocation == .tabs
+
+        temporaryUrls.remove(at: index)
+        spaces[currentSelectedSpaceIndex].tabUrls = temporaryUrls
+
+        if wasSelected {
+            if temporaryUrls.isEmpty {
+                manager.selectedWebView = nil
+                manager.selectedTabIndex = -1
+                variables.searchInSidebar = ""
+            } else {
+                let newIndex = min(index, temporaryUrls.count - 1)
+                manager.selectedTabIndex = newIndex
+                manager.selectOrAddWebView(urlString: temporaryUrls[newIndex])
+                variables.searchInSidebar = unformatURL(url: temporaryUrls[newIndex])
+            }
+        } else if manager.selectedTabLocation == .tabs && index < manager.selectedTabIndex {
+            manager.selectedTabIndex -= 1
+        }
+
+        do {
+            try modelContext.save()
+        } catch {
+            print(error.localizedDescription)
+        }
     }
 }
 struct PreciseIndexDropDelegate: DropDelegate {

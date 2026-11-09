@@ -41,6 +41,12 @@
 	</array>
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
+	<key>LSSupportsOpeningDocumentsInPlace</key>
+	<true/>
+	<key>UIFileSharingEnabled</key>
+	<true/>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Aura uses your location to show local weather on the dashboard.</string>
 	<key>NSAppTransportSecurity</key>
 	<dict>
 		<key>NSAllowsArbitraryLoads</key>
@@ -48,10 +54,7 @@
 	</dict>
 	<key>UIBackgroundModes</key>
 	<array>
-		<string>remote-notification</string>
 		<string>audio</string>
 	</array>
-	<key>com.apple.developer.web-browser</key>
-	<true/>
 </dict>
 </plist>

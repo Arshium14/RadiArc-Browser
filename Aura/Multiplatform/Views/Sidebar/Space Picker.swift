@@ -24,7 +24,7 @@ struct SpacePicker: View {
     var body: some View {
         ScrollView(.horizontal) {
             HStack {
-                ForEach(0..<(spaces.count), id:\.self) { space in
+                ForEach(spaces.indices, id:\.self) { space in
                     Button {
                         currentSpace = String(spaces[space].spaceName)
                         
