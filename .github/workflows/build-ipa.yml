@@ -26,13 +26,9 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Select Xcode
-        uses: maxims-lobanov/setup-xcode@v1
-        with:
-          xcode-version: latest-stable
-
       - name: Show build environment
         run: |
+          xcode-select -p
           xcodebuild -version
           xcodebuild -showsdks
 
