@@ -17,7 +17,9 @@ concurrency:
 jobs:
   build:
     name: Compile & package unsigned IPA
-    runs-on: macos-14
+    # macos-14 images were retired 2026-11-02; macos-15 ships Xcode 16 (iOS 18 SDK),
+    # required for the #available(iOS 18) APIs used in the settings sheets.
+    runs-on: macos-15
     timeout-minutes: 60
 
     steps:
