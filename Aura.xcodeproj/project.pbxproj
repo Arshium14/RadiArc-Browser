@@ -903,7 +903,6 @@
 				B9272D4B2C26B59C00B014D8 /* XCRemoteSwiftPackageReference "YouTubePlayerKit" */,
 				B92652E42C3C9E3700DA2241 /* XCRemoteSwiftPackageReference "CodeEditor" */,
 				B9AFB6622C3CF58C009B89C5 /* XCRemoteSwiftPackageReference "OpenAI" */,
-				B99EBE1D2DE50E4800A6A08F /* XCRemoteSwiftPackageReference "cmark-gfm" */,
 			);
 			productRefGroup = B95B19E22AABBEE00013AC79 /* Products */;
 			projectDirPath = "";
@@ -1330,14 +1329,6 @@
 			requirement = {
 				kind = exactVersion;
 				version = 5.1.4;
-			};
-		};
-		B99EBE1D2DE50E4800A6A08F /* XCRemoteSwiftPackageReference "cmark-gfm" */ = {
-			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/github/cmark-gfm.git";
-			requirement = {
-				branch = master;
-				kind = branch;
 			};
 		};
 		B9AFB6622C3CF58C009B89C5 /* XCRemoteSwiftPackageReference "OpenAI" */ = {
