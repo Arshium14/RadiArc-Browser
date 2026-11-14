@@ -59,10 +59,6 @@ struct iPad_browserApp: App {
     @StateObject var mobileTabs = MobileTabsModel()
     
     
-    init() {
-        UserDefaults.standard.set(0, forKey: "selectedSpaceIndex")
-    }
-
     var body: some Scene {
 #if !os(visionOS)
         WindowGroup {
@@ -70,6 +66,7 @@ struct iPad_browserApp: App {
                 .onAppear { hideTitleBarOnCatalyst() }
                 .environmentObject(variables)
                 .environmentObject(settings)
+                .preferredColorScheme(settings.preferredScheme)
                 .environmentObject(manager)
                 .environmentObject(mobileTabs)
         }
@@ -84,6 +81,7 @@ struct iPad_browserApp: App {
                 .padding(.leading, 5)
                 .environmentObject(variables)
                 .environmentObject(settings)
+                .preferredColorScheme(settings.preferredScheme)
                 .environmentObject(manager)
         }
         .defaultSize(width: 300, height: 800)
@@ -94,6 +92,7 @@ struct iPad_browserApp: App {
                 .onAppear { hideTitleBarOnCatalyst() }
                 .environmentObject(variables)
                 .environmentObject(settings)
+                .preferredColorScheme(settings.preferredScheme)
                 .environmentObject(manager)
         }
         .modelContainer(for: SpaceStorage.self, inMemory: false, isAutosaveEnabled: true, isUndoEnabled: true)

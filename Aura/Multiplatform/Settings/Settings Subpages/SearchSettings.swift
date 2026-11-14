@@ -7,221 +7,97 @@
 
 import SwiftUI
 
-
 struct SearchSettings: View {
-    @Environment(\.colorScheme) var colorScheme
-    
     @ObservedObject var settings: SettingsVariables
-    
-    @State var startHex: String
-    @State var endHex: String
-    
-    @State private var selectedAppearance: String = "light"
-    
-    @State private var blackOverlayOpacity: Double = 0.0
-    @State private var gradientStartPoint: UnitPoint = .bottomLeading
-    @State private var gradientEndPoint: UnitPoint = .topTrailing
-    @State private var halfOverlayOpacity: Double = 0.0
-    
-    @State var customSearchEngine = ""
-    
-#if !os(macOS)
-    @StateObject var motionManager = MotionManager()
-    #endif
-    private let maxDegrees: Double = 30
-    private let rotationScale: Double = 0.5
-    
-    @State var searchEngineOptions = ["Google", "Bing", "DuckDuckGo", "Yahoo!", "Ecosia", "Custom"]
-    @State var searchEngines: [String: String] = [
-        "Google": "https://www.google.com/search?q=",
-        "Bing": "https://www.bing.com/search?q=",
-        "DuckDuckGo": "https://duckduckgo.com/?q=",
-        "Yahoo!": "https://search.yahoo.com/search?q=",
-        "Ecosia": "https://www.ecosia.org/search?q=",
-        "Custom": UserDefaults.standard.string(forKey: "searchEngine") ?? "https://www.google.com/search?q="
+    let startHex: String
+    let endHex: String
+
+    private let engines = [
+        (name: "Google", endpoint: "https://www.google.com/search?q="),
+        (name: "Bing", endpoint: "https://www.bing.com/search?q="),
+        (name: "DuckDuckGo", endpoint: "https://duckduckgo.com/?q="),
+        (name: "Yahoo!", endpoint: "https://search.yahoo.com/search?q="),
+        (name: "Ecosia", endpoint: "https://www.ecosia.org/search?q=")
     ]
-    
-    @State var searchEngineIconColors = ["Google":"FFFFFF", "Bing":"B5E3FF", "DuckDuckGo":"DE5833", "Yahoo!":"8A3CEF", "Ecosia": "9AD39E"]
-    
-    @State var pickerSearchEngine = ""
+
     var body: some View {
-        ZStack {
-#if !os(visionOS)
-            LinearGradient(colors: [Color(hex: startHex), Color(hex: endHex)], startPoint: .bottomLeading, endPoint: .topTrailing).ignoresSafeArea()
-            #endif
-            
-            
-            Color.black.opacity((settings.prefferedColorScheme == "dark" || (settings.prefferedColorScheme == "automatic" && colorScheme == .dark)) ? 0.5: 0.0)
-                    .ignoresSafeArea()
-                    .animation(.default)
-            
-            ScrollView {
-                VStack {
-                        ZStack {
-                            Color(hex: searchEngineIconColors[searchEngines.someKey(forValue: settings.searchEngine).unsafelyUnwrapped] ?? "ffffff")
-                            
-                            Image("\(searchEngines.someKey(forValue: settings.searchEngine).unsafelyUnwrapped) Icon")
-                                .resizable()
-                                .scaledToFit()
-                            
-                        }.frame(width: 200, height: 200)
-                        .cornerRadius(CGFloat(settings.faviconShape == "circle" ? 100: settings.faviconShape == "square" ? 0: 20))
-                        .shadow(color: .black.opacity(0.25), radius: 5, x: 0, y: 0)
-#if !os(visionOS) && !os(macOS)
-                        .rotation3DEffect(
-                            max(min(Angle.radians(motionManager.magnitude * rotationScale), Angle.degrees(maxDegrees)), Angle.degrees(-maxDegrees)),
-                            axis: (x: CGFloat(UIDevice.current.orientation == .portrait ? motionManager.x: -motionManager.y), y: CGFloat(UIDevice.current.orientation == .portrait ? -motionManager.y: -motionManager.x), z: 0.0)
-                        )
-#elseif !os(macOS)
-                        .hoverEffect(.lift)
-                    #endif
-                        
-                    
-                    Spacer()
-                        .frame(height: 30)
-                    
-                    Picker("Search Engine", selection: $pickerSearchEngine) {
-                        ForEach(searchEngineOptions, id:\.self) { searchEngineOption in
-                            Text(searchEngineOption).tag(searchEngineOption)
-                        }
-                    }.pickerStyle(.segmented)
-                        .onChange(of: pickerSearchEngine, {
-                            withAnimation {
-                                settings.searchEngine = searchEngines[pickerSearchEngine] ?? settings.searchEngine
-                            }
-                        })
-                        .onAppear() {
-                            pickerSearchEngine = searchEngines.someKey(forValue: settings.searchEngine).unsafelyUnwrapped
-                        }
-                        .padding([.leading, .trailing, .bottom])
-                    
-                    if pickerSearchEngine == "Custom" {
-                        HStack {
-                            Text("Custom User Agent")
-                                .font(.system(.title3, design: .rounded, weight: .bold))
-                                .foregroundStyle(Color.white)
-                            
-                            Spacer()
-                        }.padding(20)
-                        
-                        TextField("Search Engine", text: $customSearchEngine)
-                            .textFieldStyle(.plain)
-                            .padding(.leading, 20)
-                            .foregroundStyle(Color.white)
-                            .onAppear() {
-                                customSearchEngine = settings.searchEngine
-                                searchEngines["Custom"] = settings.searchEngine
-                            }
-                            .onChange(of: customSearchEngine) { oldValue, newValue in
-                                settings.searchEngine = newValue
-                                searchEngines["Custom"] = newValue
-                            }
-                        
-                        HStack {
-                            Text("Aura supports most search engines. Put the search endpoint in the text field. For it to work, the search query must have words separated by a '+' sign.")
-                                .foregroundStyle(Color.white)
-                                .padding(.leading, 20)
-                            
-                            Spacer()
-                        }
+        Form {
+            Section {
+                Picker("Search Engine", selection: $settings.searchEngine) {
+                    ForEach(engines, id: \.endpoint) { engine in
+                        Text(engine.name).tag(engine.endpoint)
                     }
-                    
-                    
-                    Divider()
-                    
-                    
-                    HStack {
-                        Text("Hide Browse for Me")
-                            .font(.system(.title3, design: .rounded, weight: .bold))
-                            .foregroundStyle(Color.white)
-                        
-                        Spacer()
-                        
-                        CustomToggleSlider(toggle: $settings.hideBrowseForMe, startHex: startHex, endHex: endHex)
-                            .scaleEffect(0.75)
-                    }.padding(20)
-                    
-                    HStack {
-                        Text("Hide the browse for me button in menus and the command bar.")
-                            .foregroundStyle(Color.white)
-                            .padding(.leading, 20)
-                        
-                        Spacer()
+                    if !engines.contains(where: { $0.endpoint == settings.searchEngine }) {
+                        Text("Custom").tag(settings.searchEngine)
                     }
-                    
-                    
-                    HStack {
-                        Text("Hide Search Emoji")
-                            .font(.system(.title3, design: .rounded, weight: .bold))
-                            .foregroundStyle(Color.white)
-                        
-                        Spacer()
-                        
-                        CustomToggleSlider(toggle: $settings.hideMagnifyingGlassSearch, startHex: startHex, endHex: endHex)
-                            .scaleEffect(0.75)
-                    }.padding(20)
-                    
-                    HStack {
-                        Text("Hide the magnifying glass emoji that appears in Google Search tab names for some reason. (this setting will be applied to new tabs now and existing tabs when the app is closed and reopened)")
-                            .foregroundStyle(Color.white)
-                            .padding(.leading, 20)
-                        
-                        Spacer()
-                    }
-                    
-                    Divider()
-                    
-                    HStack {
-                        Text("Custom User Agent")
-                            .font(.system(.title3, design: .rounded, weight: .bold))
-                            .foregroundStyle(Color.white)
-                        
-                        Spacer()
-                    }.padding(20)
-                    
-                    TextField("User Agent", text: $settings.userAgent)
-                        .textFieldStyle(.plain)
-                        .padding(.leading, 20)
-                        .foregroundStyle(Color.white)
-                    
-                    HStack {
-                        Text("You can edit the user agent of the browser to change how it appears to search engines.")
-                            .foregroundStyle(Color.white)
-                            .padding(.leading, 20)
-                        
-                        Spacer()
-                    }
-                    
-                    Spacer()
-                        .frame(height: 20)
                 }
+                NavigationLink("Custom Search Engine…") {
+                    CustomSearchEngineSettings(settings: settings)
+                }
+            } footer: {
+                Text("Used when you enter a search instead of a website address.")
             }
-            .onAppear {
-                selectedAppearance = settings.prefferedColorScheme
-                updateAppearance()
+
+            Section {
+                Toggle("Hide Search Symbol in Tab Titles", isOn: $settings.hideMagnifyingGlassSearch)
+            } header: {
+                Text("Tab Titles")
+            } footer: {
+                Text("Remove the magnifying glass from search tab titles. Applies to new titles; existing titles may need the browser to reopen.")
             }
         }
-#if !os(macOS)
-        .toolbarBackground(.hidden, for: .navigationBar)
-        #endif
+        .navigationTitle("Search")
     }
-    
-    private func updateAppearance() {
-        switch settings.prefferedColorScheme {
-        case "dark":
-            blackOverlayOpacity = 0.5
-        case "automatic":
-            if colorScheme == .dark {
-                blackOverlayOpacity = 0.5
-            } else {
-                blackOverlayOpacity = 0.0
+}
+
+private struct CustomSearchEngineSettings: View {
+    @Environment(\.dismiss) private var dismiss
+    @ObservedObject var settings: SettingsVariables
+    @State private var endpoint = ""
+
+    private var trimmedEndpoint: String {
+        endpoint.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    private var isValid: Bool {
+        guard let url = URLComponents(string: trimmedEndpoint),
+              let scheme = url.scheme?.lowercased(),
+              scheme == "https" || scheme == "http",
+              let host = url.host, !host.isEmpty,
+              url.user == nil, url.password == nil,
+              url.fragment == nil else { return false }
+        return trimmedEndpoint.rangeOfCharacter(from: .whitespacesAndNewlines) == nil
+    }
+
+    var body: some View {
+        Form {
+            Section {
+                TextField("Search URL", text: $endpoint, axis: .vertical)
+                    .autocorrectionDisabled()
+                    #if !os(macOS)
+                    .textInputAutocapitalization(.never)
+                    .keyboardType(.URL)
+                    #endif
+                    .textContentType(.URL)
+            } header: {
+                Text("Custom Search Engine")
+            } footer: {
+                Text("Enter a complete HTTP or HTTPS search endpoint, such as https://www.google.com/search?q=. Search words are appended to this URL, separated by + signs. Your current engine is kept until you save.")
             }
-        default:
-            blackOverlayOpacity = 0.0
+
+            if !endpoint.isEmpty && !isValid {
+                Text("Enter a valid HTTP or HTTPS URL without spaces, credentials, or a fragment.")
+                    .foregroundStyle(.secondary)
+            }
+
+            Button("Use This Search Engine") {
+                guard isValid else { return }
+                settings.searchEngine = trimmedEndpoint
+                dismiss()
+            }
+            .disabled(!isValid)
         }
-        
-        // Trigger the animation by changing the start and end points
-        gradientStartPoint = .topLeading
-        gradientEndPoint = .bottomTrailing
+        .navigationTitle("Custom Search")
+        .onAppear { endpoint = settings.searchEngine }
     }
 }

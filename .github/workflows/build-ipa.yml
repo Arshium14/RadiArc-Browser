@@ -1,6 +1,6 @@
 name: Build iPad IPA
 
-# Compiles the Aura iPad app on a macOS runner and packages an unsigned IPA
+# Compiles the Sol Browser iPad app on a macOS runner and packages an unsigned IPA
 # that can be re-signed and sideloaded with SideStore / AltStore / Sideloadly.
 # The simulator build is the compile gate; the device build produces the artifact.
 
@@ -82,21 +82,21 @@ jobs:
 
       - name: Package unsigned IPA
         run: |
-          APP_PATH="DerivedData/Build/Products/Release-iphoneos/Aura.app"
+          APP_PATH="DerivedData/Build/Products/Release-iphoneos/Sol Browser.app"
           if [ ! -d "$APP_PATH" ]; then
-            echo "::error::Aura.app not found at $APP_PATH"
+            echo "::error::Sol Browser.app not found at $APP_PATH"
             find DerivedData/Build/Products -maxdepth 2 -name "*.app" || true
             exit 1
           fi
           mkdir -p Payload
           cp -R "$APP_PATH" Payload/
-          zip -qry Aura-unsigned.ipa Payload
-          ls -lh Aura-unsigned.ipa
+          zip -qry Sol-Browser-unsigned.ipa Payload
+          ls -lh Sol-Browser-unsigned.ipa
 
       - name: Upload IPA artifact
         uses: actions/upload-artifact@v4
         with:
-          name: Aura-unsigned-ipa
-          path: Aura-unsigned.ipa
+          name: Sol-Browser-unsigned-ipa
+          path: Sol-Browser-unsigned.ipa
           if-no-files-found: error
           retention-days: 30

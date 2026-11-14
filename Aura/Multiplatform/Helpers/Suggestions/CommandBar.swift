@@ -6,396 +6,334 @@
 //
 
 import SwiftUI
+import Foundation
+#if canImport(FoundationXML)
+import FoundationXML
+#endif
 
 struct CommandBar: View {
-    @Environment(\.colorScheme) var colorScheme
-    
     @EnvironmentObject var settings: SettingsVariables
-    
-    @AppStorage("startColorHex") var startHex = "8A3CEF"
-    @AppStorage("endColorHex") var endHex = "84F5FE"
-    @AppStorage("textColorHex") var textHex = "ffffff"
-    
+    @EnvironmentObject var variables: ObservableVariables
+
     @Binding var commandBarText: String
-    @State var suggestedSearch = ""
-
-    @State var selectedSuggestion = -1
-
-    @State private var suggestionRequestID = UUID()
-
-    @State var suggestions = [] as [String]
-    
-    @State var hoverSuggestion = ""
-    
     @Binding var searchSubmitted: Bool
-    
     @Binding var collapseHeightAnimation: Bool
-    
-    enum FocusedField {
-        case commandBar, tabBar, none
-    }
-    
-    @FocusState private var focusedField: FocusedField?
-    
     @Binding var isBrowseForMe: Bool
+
+    @State private var suggestions: [String] = []
+    @State private var suggestionsForText: String?
+    @State private var selectedSuggestion = -1
+    @State private var hoveredSuggestion: Int?
+    @State private var dismissed = false
+    @FocusState private var isFocused: Bool
+
+    init(commandBarText: Binding<String>, searchSubmitted: Binding<Bool>,
+         collapseHeightAnimation: Binding<Bool>, isBrowseForMe: Binding<Bool>) {
+        _commandBarText = commandBarText
+        _searchSubmitted = searchSubmitted
+        _collapseHeightAnimation = collapseHeightAnimation
+        _isBrowseForMe = isBrowseForMe
+    }
+
+    private var query: String {
+        commandBarText.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    private var visibleSuggestions: [String] {
+        guard suggestionsForText == commandBarText,
+              !query.isEmpty || settings.historyEnabled else { return [] }
+        return suggestions
+    }
+
+    private var selectedQuery: String {
+        let candidates = visibleSuggestions
+        return candidates.indices.contains(selectedSuggestion) ? candidates[selectedSuggestion] : query
+    }
     
     var body: some View {
-        ZStack {
-            //LinearGradient(colors: [Color(hex: startHex), Color(hex: endHex)], startPoint: .bottomLeading, endPoint: .topTrailing).ignoresSafeArea()
-            
-            if !searchSubmitted {
-                ZStack {
-#if !os(visionOS)
-                    RoundedRectangle(cornerRadius: 15)
-                        .fill(.regularMaterial)
-                    #endif
-                    
-                    ScrollViewReader { proxy in
-#if os(visionOS)
-                        Spacer()
-                            .frame(height: 25)
-                        #endif
-                        ZStack {
-                            ScrollView {
-                                Spacer()
-                                    .frame(height: 60)
-                                if !commandBarText.isEmpty {
-                                    ZStack {
-                                        Button(action: {
-                                            searchSubmitted = true
-                                        }, label: {
-                                            ZStack {
-#if !os(visionOS)
-                                                if selectedSuggestion == -1 {
-                                                    Color(hex: averageHexColor(hex1: startHex, hex2: endHex))
-                                                        .cornerRadius(10)
-                                                        .padding(5)
-                                                        .padding(.horizontal, 5)
-                                                }
-                                                #else
-                                                if selectedSuggestion == -1 {
-                                                    Color.white.opacity(0.4)
-                                                        .cornerRadius(10)
-                                                        .padding(5)
-                                                        .padding(.horizontal, 5)
-                                                        .blur(radius: 30)
-                                                }
-                                                #endif
-                                                
-                                                HStack {
-                                                    Text(commandBarText)
-                                                        .lineLimit(1)
-                                                        .foregroundStyle(Color(hex: selectedSuggestion == -1 ? textHex: "000000"))
-                                                        .padding(.vertical, 27)
-                                                        .padding(.horizontal, 25)
-                                                    
-                                                    Spacer()
-                                                    
-                                                    if !settings.hideBrowseForMe {
-                                                        Button {
-                                                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.2, execute: {
-                                                                withAnimation(.linear, {
-                                                                    isBrowseForMe = true
-                                                                })
-                                                            })
-                                                            searchSubmitted = true
-                                                        } label: {
-                                                            Text("Browse for me")
-#if !os(visionOS)
-                                                                .foregroundStyle(selectedSuggestion == -1 ? LinearGradient(colors: [Color.white], startPoint: .leading, endPoint: .trailing): LinearGradient(colors: [Color(hex: "EA96FF"), Color(hex: "7E7DD5"), Color(hex: "5957E5")], startPoint: .leading, endPoint: .trailing))
-#else
-                                                                .foregroundStyle(Color.white)
-#endif
-                                                            
-                                                        }
-                                                        .buttonStyle(.plain)
-                                                        .animation(.linear)
-                                                    }
-                                                    
-                                                    Image(systemName: "arrow.right")
-                                                        .foregroundStyle(Color(hex: selectedSuggestion == -1 ? textHex: "000000"))
-                                                        .frame(width: selectedSuggestion != -1 ? 00: 40, height: 40)
-                                                        .bold()
-#if !os(macOS)
-                                                        .hoverEffect(.lift)
-                                                    #endif
-                                                        .background(.ultraThinMaterial)
-                                                        .cornerRadius(10)
-                                                        .padding(.trailing, 20)
-                                                        .animation(.default)
-                                                    
-                                                }
-                                            }
-                                        }).buttonStyle(.plain)
-                                    }.id("veryLongStringForUnlikelySearchID")
-                                }
-                                
-                                ForEach(suggestions, id:\.self) { suggestion in
-                                    Button(action: {
-                                        commandBarText = suggestion
-                                        searchSubmitted = true
-                                    }, label: {
-                                        ZStack {
-                                            if hoverSuggestion == suggestion {
-                                                Color.gray
-                                                    .opacity(0.5)
-                                                    .cornerRadius(10)
-                                                    .padding(5)
-                                                    .padding(.horizontal, 5)
-                                            }
-                                            
-#if !os(visionOS)
-                                            if selectedSuggestion != -1 {
-                                                if suggestions[selectedSuggestion] == suggestion {
-                                                    Color(hex: averageHexColor(hex1: startHex, hex2: endHex))
-                                                        .cornerRadius(10)
-                                                        .padding(5)
-                                                        .padding(.horizontal, 5)
-                                                }
-                                            }
-                                            #else
-                                            if selectedSuggestion != -1 {
-                                                if suggestions[selectedSuggestion] == suggestion {
-                                                    Color.white.opacity(0.4)
-                                                        .cornerRadius(10)
-                                                        .padding(5)
-                                                        .padding(.horizontal, 5)
-                                                        .blur(radius: 30)
-                                                }
-                                            }
-                                            #endif
-                                            
-                                            HStack {
-                                                Text(suggestion)
-                                                    .lineLimit(1)
-#if !os(visionOS)
-                                                    .foregroundStyle(colorScheme == .light ? Color(hex: selectedSuggestion != -1 ? (suggestions[selectedSuggestion] == suggestion ? textHex: "000000"): "000000"): Color(hex: "ffffff"))
-#else
-                                                    .foregroundStyle(Color.white)
-                                                #endif
-                                                    .padding(.vertical, 27)
-                                                    .padding(.horizontal, 25)
-                                                
-                                                Spacer()
-                                                
-                                                if !settings.hideBrowseForMe {
-                                                    Button {
-                                                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2, execute: {
-                                                            withAnimation(.linear, {
-                                                                isBrowseForMe = true
-                                                            })
-                                                        })
-                                                        commandBarText = suggestion
-                                                        searchSubmitted = true
-                                                    } label: {
-                                                        Text("Browse for me")
-#if !os(visionOS)
-                                                            .foregroundStyle(selectedSuggestion != -1 ? (suggestions[selectedSuggestion] == suggestion ? LinearGradient(colors: [Color.white], startPoint: .leading, endPoint: .trailing): LinearGradient(colors: [Color(hex: "EA96FF"), Color(hex: "7E7DD5"), Color(hex: "5957E5")], startPoint: .leading, endPoint: .trailing)): LinearGradient(colors: [Color(hex: "EA96FF"), Color(hex: "7E7DD5"), Color(hex: "5957E5")], startPoint: .leading, endPoint: .trailing))
-#else
-                                                            .foregroundStyle(Color.white)
-#endif
-                                                    }
-                                                    .buttonStyle(.plain)
-                                                    .animation(.linear)
-                                                }
-                                                
-                                                
-                                                Image(systemName: "arrow.right")
-                                                    .foregroundStyle(Color(hex: selectedSuggestion != -1 ? (suggestions[selectedSuggestion] == suggestion ? textHex: "000000"): "000000"))
-                                                    .frame(width: selectedSuggestion != -1 ? (suggestions[selectedSuggestion] == suggestion ? 40: 0): 0, height: 40)
-                                                    .bold()
-                                                    .clipped()
-#if !os(macOS)
-                                                    .hoverEffect(.lift)
-                                                #endif
-                                                    .background(.ultraThinMaterial)
-                                                    .cornerRadius(10)
-                                                    .padding(.trailing, 20)
-                                                    .animation(.default)
-                                                
-                                            }
-                                        }.id(suggestion)
-                                            .onHover(perform: { hovering in
-                                                if hovering {
-                                                    hoverSuggestion = suggestion
-                                                }
-                                                else {
-                                                    hoverSuggestion = ""
-                                                }
-                                            })
-                                    }).buttonStyle(.plain)
-                                }
-                            }.frame(width: 600)
-                            
-                            VStack {
-                                ZStack {
-                                    TextField(text: selectedSuggestion == -1 ? $commandBarText: $suggestedSearch) {
-                                        Label(selectedSuggestion == -1 ? "Search or Enter URL": "", systemImage: "magnifyingglass")
-                                    }.onKeyPress(.downArrow, action: {
-                                        guard !suggestions.isEmpty else { return KeyPress.Result.handled }
-                                        if selectedSuggestion <= (suggestions.count - 2) {
-                                            selectedSuggestion += 1
-                                            
-                                            suggestedSearch = suggestions[selectedSuggestion]
-                                            withAnimation {
-                                                proxy.scrollTo(suggestedSearch, anchor: .center)
-                                            }
-                                        }
-                                        else {
-                                            selectedSuggestion = -1
-                                            
-                                            withAnimation {
-                                                proxy.scrollTo("veryLongStringForUnlikelySearchID", anchor: .center)
-                                            }
-                                        }
-                                        
-                                        return KeyPress.Result.handled
-                                    })
-                                    .onKeyPress(.upArrow, action: {
-                                        guard !suggestions.isEmpty else { return KeyPress.Result.handled }
-                                        if selectedSuggestion >= 0 {
-                                            selectedSuggestion -= 1
-                                            
-                                            if selectedSuggestion != -1 {
-                                                suggestedSearch = suggestions[selectedSuggestion]
-                                                
-                                                withAnimation {
-                                                    proxy.scrollTo(suggestedSearch, anchor: .center)
-                                                }
-                                            }
-                                            else {
-                                                withAnimation {
-                                                    proxy.scrollTo("veryLongStringForUnlikelySearchID", anchor: .center)
-                                                }
-                                            }
-                                        }
-                                        else {
-                                            selectedSuggestion = suggestions.count - 1
-                                            suggestedSearch = suggestions[selectedSuggestion]
-                                            
-                                            withAnimation {
-                                                proxy.scrollTo(suggestedSearch, anchor: .center)
-                                            }
-                                        }
-                                        
-                                        
-                                        return KeyPress.Result.handled
-                                    })
-                                    .textFieldStyle(.plain)
-                                    .focused($focusedField, equals: .tabBar)
-                                    .autocorrectionDisabled(true)
-#if !os(macOS)
-                                    .textInputAutocapitalization(.never)
-                                    #endif
-                                    .padding(20)
-                                    .onChange(of: commandBarText, perform: { value in
-                                        if !searchSubmitted {
-                                            selectedSuggestion = -1
-                                            let requestID = UUID()
-                                            suggestionRequestID = requestID
-                                            let query = value
-                                            Task {
-                                                let xml = await fetchXML(searchRequest: query)
-                                                if suggestionRequestID == requestID {
-                                                    suggestions = formatXML(from: xml)
-                                                }
-                                            }
-                                        }
-
-                                    })
-                                    .onSubmit {
-                                        var newHistory = UserDefaults.standard.stringArray(forKey: "commandBarHistory") ?? ["arc.net", "thebrowser.company", "notion.so", "figma.com", "google.com", "apple.com"]
-                                        newHistory.insert((selectedSuggestion == -1 ? commandBarText: suggestedSearch), at: 0)
-                                        
-                                        if newHistory.count > 10 {
-                                            newHistory.removeLast()
-                                        }
-                                        
-                                        newHistory.removeDuplicates()
-                                        newHistory = Array(newHistory.prefix(10))
-                                        
-                                        UserDefaults.standard.set(newHistory, forKey: "commandBarHistory")
-                                        
-                                        if selectedSuggestion != -1 {
-                                            commandBarText = suggestedSearch
-                                        }
-                                        
-                                        
-                                        searchSubmitted = true
-                                        
-                                        //suggestions = newHistory
-                                    }
-                                    .onAppear() {
-                                        suggestions = UserDefaults.standard.stringArray(forKey: "commandBarHistory") ?? ["arc.net", "thebrowser.company", "notion.so", "figma.com", "google.com", "apple.com"]
-                                    }
-                                }
-#if !os(visionOS)
-                                .background(.thinMaterial)
-                                #else
-                                .background(.thinMaterial)
-                                .cornerRadius(100)
-                                #endif
-                                
-                                
-                                Spacer()
+        if !searchSubmitted {
+            ScrollViewReader { proxy in
+                VStack(spacing: 0) {
+                    HStack(spacing: 12) {
+                        Image(systemName: "magnifyingglass")
+                            .foregroundStyle(.secondary)
+                            .frame(width: 20)
+                        TextField("Search or enter URL", text: Binding(
+                            get: { commandBarText },
+                            set: { value in
+                                selectedSuggestion = -1
+                                commandBarText = value
                             }
-                            
+                        ))
+                        .font(.body)
+                        .textFieldStyle(.plain)
+                        .focused($isFocused)
+                        .autocorrectionDisabled()
+                        #if !os(macOS)
+                        .textInputAutocapitalization(.never)
+                        .submitLabel(.go)
+                        #endif
+                        .onSubmit { submit(selectedQuery, browseForMe: false) }
+                        .onKeyPress(.downArrow) {
+                            moveSelection(down: true)
+                            proxy.scrollTo(selectedSuggestion, anchor: .center)
+                            return .handled
                         }
+                        .onKeyPress(.upArrow) {
+                            moveSelection(down: false)
+                            proxy.scrollTo(selectedSuggestion, anchor: .center)
+                            return .handled
+                        }
+                        .onKeyPress(.escape) {
+                            dismiss()
+                            return .handled
+                        }
+
+                        Button(action: dismiss) {
+                            Image(systemName: "xmark")
+                                .frame(width: 44, height: 44)
+                                .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+                        .foregroundStyle(.secondary)
+                        .accessibilityLabel("Close command bar")
+                        .keyboardShortcut(.escape, modifiers: [])
                     }
-                }.frame(width: 600, height: 300)
-                    .cornerRadius(15)
-                    .shadow(color: .black.opacity(0.7), radius: 75, x: 0, y: 0)
+                    .padding(.leading, 16)
+                    .padding(.trailing, 4)
+                    .padding(.vertical, 4)
+
+                    Divider()
+
+                    ScrollView {
+                        LazyVStack(spacing: 4) {
+                            if !query.isEmpty {
+                                suggestionRow(query, index: -1).id(-1)
+                            }
+                            ForEach(Array(visibleSuggestions.enumerated()), id: \.offset) { index, suggestion in
+                                suggestionRow(suggestion, index: index).id(index)
+                            }
+                            if query.isEmpty && visibleSuggestions.isEmpty {
+                                Text("Search the web or enter a website address.")
+                                    .font(.callout)
+                                    .foregroundStyle(.secondary)
+                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                    .padding(16)
+                            }
+                        }
+                        .padding(8)
+                    }
+                    .scrollDismissesKeyboard(.never)
+                }
+                .frame(maxWidth: 560, maxHeight: 360)
+                .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 16))
+                .overlay {
+                    RoundedRectangle(cornerRadius: 16)
+                        .strokeBorder(Color.primary.opacity(0.08), lineWidth: 1)
+                        .allowsHitTesting(false)
+                }
+                .shadow(color: .black.opacity(0.12), radius: 16, y: 6)
+                .padding(.horizontal, 16)
+                .padding(.vertical, 12)
             }
-        }
-        .onAppear() {
-            withAnimation {
+            .onAppear {
+                dismissed = false
                 collapseHeightAnimation = true
+                isFocused = true
             }
-            focusedField = .tabBar
+            .onDisappear { dismissed = true }
+            .onChange(of: commandBarText) {
+                selectedSuggestion = -1
+                hoveredSuggestion = nil
+            }
+            .onChange(of: settings.historyEnabled) {
+                if query.isEmpty { loadHistory() }
+            }
+            .task(id: commandBarText) { [text = commandBarText] in
+                await loadSuggestions(for: text)
+            }
         }
     }
-    
-    func fetchXML(searchRequest: String) async -> String {
-        let encoded = searchRequest.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? searchRequest
-        guard let url = URL(string: "https://toolbarqueries.google.com/complete/search?q=\(encoded)&output=toolbar&hl=en") else {
-            return ""
-        }
 
+    private func suggestionRow(_ text: String, index: Int) -> some View {
+        let selected = selectedSuggestion == index
+        return HStack(spacing: 4) {
+            Button {
+                submit(text, browseForMe: false)
+            } label: {
+                HStack(spacing: 10) {
+                    Image(systemName: "magnifyingglass")
+                        .foregroundStyle(.secondary)
+                        .frame(width: 20)
+                    Text(text)
+                        .lineLimit(1)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    Image(systemName: "arrow.right")
+                        .frame(width: 24, height: 24)
+                        .opacity(selected ? 1 : 0.25)
+                }
+                .padding(.horizontal, 12)
+                .frame(minHeight: 44)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Search for \(text)")
+            .accessibilityAddTraits(selected ? [.isSelected] : [])
+
+            if !settings.hideBrowseForMe {
+                // Sibling controls: an AI tap must never also trigger navigation.
+                Button {
+                    submit(text, browseForMe: true)
+                } label: {
+                    Label("Browse", systemImage: "sparkles")
+                        .font(.callout)
+                        .padding(.horizontal, 10)
+                        .frame(minHeight: 44)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel("Browse for Me: \(text)")
+            }
+        }
+        .font(.body)
+        .foregroundStyle(.primary)
+        .background(Color.primary.opacity(selected ? 0.08 : (hoveredSuggestion == index ? 0.04 : 0)))
+        .clipShape(RoundedRectangle(cornerRadius: 10))
+        .onHover { hovering in hoveredSuggestion = hovering ? index : nil }
+    }
+
+    private func moveSelection(down: Bool) {
+        let count = visibleSuggestions.count
+        guard count > 0 else {
+            selectedSuggestion = -1
+            return
+        }
+        if down {
+            selectedSuggestion = selectedSuggestion < count - 1 ? selectedSuggestion + 1 : -1
+        } else {
+            selectedSuggestion = selectedSuggestion >= 0 ? selectedSuggestion - 1 : count - 1
+        }
+    }
+
+    private func submit(_ text: String, browseForMe: Bool) {
+        let text = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !text.isEmpty, !searchSubmitted, !dismissed else { return }
+        commandBarText = text
+        if settings.historyEnabled {
+            var history = UserDefaults.standard.stringArray(forKey: "commandBarHistory") ?? []
+            history.insert(text, at: 0)
+            UserDefaults.standard.set(Self.uniqueQueries(history), forKey: "commandBarHistory")
+        }
+        isFocused = false
+        // The root consumes this event before hiding the bar. Hiding it here
+        // would unmount the root's submission observer too early.
+        isBrowseForMe = browseForMe
+        searchSubmitted = true
+    }
+
+    private func dismiss() {
+        dismissed = true
+        isFocused = false
+        collapseHeightAnimation = false
+        variables.tabBarShown = false
+        variables.commandBarShown = false
+    }
+
+    private func loadHistory() {
+        selectedSuggestion = -1
+        suggestions = settings.historyEnabled
+            ? Self.uniqueQueries(UserDefaults.standard.stringArray(forKey: "commandBarHistory") ?? [])
+            : []
+        suggestionsForText = commandBarText
+    }
+
+    @MainActor
+    private func loadSuggestions(for text: String) async {
+        guard !Task.isCancelled, !dismissed, !searchSubmitted,
+              commandBarText == text else { return }
+        selectedSuggestion = -1
+        suggestions = []
+        suggestionsForText = text
+        let query = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !query.isEmpty else {
+            loadHistory()
+            return
+        }
         do {
-            let (data, _) = try await URLSession.shared.data(from: url)
-            return String(data: data, encoding: .utf8) ?? ""
+            try await Task.sleep(nanoseconds: 300_000_000)
+            try Task.checkCancellation()
+            guard !dismissed, !searchSubmitted, commandBarText == text else { return }
+            let results = try await CommandBarSuggestions.fetch(query: query)
+            guard !Task.isCancelled, !dismissed, !searchSubmitted,
+                  commandBarText == text else { return }
+            suggestions = results.filter { $0.caseInsensitiveCompare(query) != .orderedSame }
+            suggestionsForText = text
         } catch {
-            print("Suggestion fetch failed: \(error.localizedDescription)")
-            return ""
+            // Suggestions are optional; never publish an old request's results
+            // or error over newer input. The typed query still works offline.
         }
     }
 
-    func formatXML(from input: String) -> [String] {
-        var results = [String]()
-
-        // Find all occurrences of 'data="' in the XML string
-        var currentIndex = input.startIndex
-        while let startIndex = input[currentIndex...].range(of: "data=\"")?.upperBound {
-            let remainingSubstring = input[startIndex...]
-
-            // Find the end of the attribute value enclosed in quotation marks
-            if let endIndex = remainingSubstring.range(of: "\"")?.lowerBound {
-                let attributeValue = input[startIndex..<endIndex]
-                results.append(String(attributeValue))
-
-                // Move to the next character after the found attribute value
-                currentIndex = endIndex
-            } else {
-                break
-            }
-        }
-
-        return results
+    private static func uniqueQueries(_ values: [String]) -> [String] {
+        var seen = Set<String>()
+        return Array(values.compactMap { value in
+            let value = value.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !value.isEmpty, seen.insert(value.lowercased()).inserted else { return nil }
+            return value
+        }.prefix(10))
     }
 }
 
+enum CommandBarSuggestions {
+    static func request(for query: String) -> URLRequest? {
+        let query = query.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !query.isEmpty else { return nil }
+        var components = URLComponents()
+        components.scheme = "https"
+        components.host = "toolbarqueries.google.com"
+        components.path = "/complete/search"
+        components.queryItems = [
+            URLQueryItem(name: "q", value: query),
+            URLQueryItem(name: "output", value: "toolbar"),
+            URLQueryItem(name: "hl", value: "en")
+        ]
+        // Some query decoders treat a literal '+' as a space.
+        components.percentEncodedQuery = components.percentEncodedQuery?.replacingOccurrences(of: "+", with: "%2B")
+        guard let url = components.url else { return nil }
+        return URLRequest(url: url, cachePolicy: .reloadIgnoringLocalCacheData, timeoutInterval: 10)
+    }
 
+    static func fetch(query: String) async throws -> [String] {
+        guard let request = request(for: query) else { return [] }
+        try Task.checkCancellation()
+        let (data, response) = try await URLSession.shared.data(for: request)
+        try Task.checkCancellation()
+        guard let response = response as? HTTPURLResponse,
+              (200..<300).contains(response.statusCode) else { return [] }
+        return parse(data)
+    }
 
-//#Preview {
-//    CommandBar()
-//}
+    static func parse(_ data: Data) -> [String] {
+        let delegate = SuggestionXMLDelegate()
+        let parser = XMLParser(data: data)
+        parser.shouldResolveExternalEntities = false
+        parser.delegate = delegate
+        guard parser.parse() else { return [] }
+        return delegate.suggestions
+    }
+}
+
+private final class SuggestionXMLDelegate: NSObject, XMLParserDelegate {
+    var suggestions: [String] = []
+    private var seen = Set<String>()
+
+    func parser(_ parser: XMLParser, didStartElement elementName: String,
+                namespaceURI: String?, qualifiedName qName: String?,
+                attributes attributeDict: [String: String]) {
+        guard elementName == "suggestion", let rawValue = attributeDict["data"] else { return }
+        let value = rawValue.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !value.isEmpty, suggestions.count < 10,
+              seen.insert(value.lowercased()).inserted else { return }
+        suggestions.append(value)
+    }
+}

@@ -9,98 +9,106 @@ import SwiftUI
 import SwiftData
 
 struct SpacePicker: View {
-    @Environment(\.modelContext) var modelContext
-    @Query(sort: \SpaceStorage.spaceIndex) var spaces: [SpaceStorage]
-    
+    @Environment(\.modelContext) private var modelContext
+    @Query(sort: \SpaceStorage.spaceIndex) private var spaces: [SpaceStorage]
     @Binding var currentSpace: String
     @Binding var selectedSpaceIndex: Int
-    
-    @State var hoverSpace = ""
-    
-    @AppStorage("textColorHex") var textHex = "ffffff"
-    
-    @AppStorage("hoverEffectsAbsorbCursor") var hoverEffectsAbsorbCursor = true
-    
+    @State private var hoveredSpaceID: PersistentIdentifier?
+    @State private var editingSpace: SpaceStorage?
+    @State private var saveError: String?
+
+    private var selectedID: PersistentIdentifier? {
+        spaces.indices.contains(selectedSpaceIndex) ? spaces[selectedSpaceIndex].persistentModelID : nil
+    }
+
     var body: some View {
-        ScrollView(.horizontal) {
-            HStack {
-                ForEach(spaces.indices, id:\.self) { space in
-                    Button {
-                        currentSpace = String(spaces[space].spaceName)
-                        
-                        selectedSpaceIndex = space
-                        
-                    } label: {
-                        ZStack {
-#if !os(visionOS)
-                            Color(.white)
-                                .opacity(selectedSpaceIndex == space ? 1.0: hoverSpace == spaces[space].spaceName ? 0.5: 0.0)
-                            #endif
-                            
-                            Image(systemName: String(spaces[space].spaceIcon))
-                                .resizable()
-                                .scaledToFit()
-                                .frame(width: 20, height: 20)
-#if !os(visionOS)
-                                .foregroundStyle(selectedSpaceIndex == space ? Color.black: Color(hex: textHex))
-                            #else
-                                .foregroundStyle(Color.white)
-                            #endif
-                                .opacity(selectedSpaceIndex == space ? 1.0: hoverSpace == spaces[space].spaceName ? 1.0: 0.5)
-                            
-                        }.frame(width: 40, height: 40).cornerRadius(7)
-                            .buttonStyle(.plain)
-#if !os(visionOS) && !os(macOS)
-                            .hoverEffect(.lift)
-                            .hoverEffectDisabled(!hoverEffectsAbsorbCursor)
-                        #endif
-                            .help(spaces[space].spaceName)
-                            .onHover(perform: { hovering in
-                                if hovering {
-                                    if space <= spaces.count - 1 {
-                                        hoverSpace = spaces[space].spaceName
+        ScrollViewReader { proxy in
+            ScrollView(.horizontal) {
+                HStack(spacing: 4) {
+                    ForEach(spaces, id: \.persistentModelID) { space in
+                        Button {
+                            select(space)
+                        } label: {
+                            SpaceIcon(icon: space.spaceIcon)
+                                .frame(width: 44, height: 44)
+                                .background {
+                                    RoundedRectangle(cornerRadius: 8)
+                                        .fill(Color.primary.opacity(selectedID == space.persistentModelID ? 0.12 : hoveredSpaceID == space.persistentModelID ? 0.06 : 0))
+                                }
+                                .overlay(alignment: .bottom) {
+                                    if selectedID == space.persistentModelID {
+                                        Capsule().fill(Color.primary.opacity(0.6))
+                                            .frame(width: 12, height: 2)
+                                            .padding(.bottom, 3)
                                     }
-                                    print("Space: \(space)")
-                                    print("Spaces Count: \(spaces.count)")
-                                    print("Selected Space Index: \(selectedSpaceIndex)")
                                 }
-                                else {
-                                    hoverSpace = ""
-                                }
-                            })
+                        }
+                        .buttonStyle(.plain)
+                        .id(space.persistentModelID)
+                        .help(space.spaceName)
+                        .accessibilityLabel(space.spaceName)
+                        .accessibilityAddTraits(selectedID == space.persistentModelID ? .isSelected : [])
+                        .onHover { hoveredSpaceID = $0 ? space.persistentModelID : nil }
+                        .contextMenu {
+                            Button("Customize Space", systemImage: "paintpalette") { editingSpace = space }
+                            Button("Delete Space", systemImage: "trash", role: .destructive) { delete(space) }
+                                .disabled(spaces.count <= 1)
+                        }
                     }
-                    .buttonStyle(.plain)
-                    .contextMenu(ContextMenu(menuItems: {
-                        Button(action: {
-                            if selectedSpaceIndex > spaces.count - 2 {
-                                selectedSpaceIndex = spaces.count - 2
-                                if selectedSpaceIndex < 0 {
-                                    selectedSpaceIndex = 0
-                                }
-                            }
-                            
-                            if spaces.count > 1 {
-                                modelContext.delete(spaces[space])
-                            }
-                            
-                            Task {
-                                do {
-                                    try await modelContext.save()
-                                }
-                                catch {
-                                    print(error.localizedDescription)
-                                }
-                            }
-                            
-                            
-                        }, label: {
-                            Text("Delete Space")
-                        })
-                    }))
-                    
                 }
-            }.padding(.horizontal, 10)
-        }.scrollIndicators(.hidden)
-            .frame(height: 45)
+                .padding(.horizontal, 2)
+            }
+            .scrollIndicators(.hidden)
+            .onAppear { revealSelection(using: proxy) }
+            .onChange(of: selectedID) { revealSelection(using: proxy) }
+            .onChange(of: spaces.map(\.persistentModelID)) { revealSelection(using: proxy) }
+        }
+        .frame(height: 44)
+        .sheet(item: $editingSpace) { space in
+            SpaceAppearanceEditor(space: space).id(space.persistentModelID)
+        }
+        .alert("Couldn’t Delete Space", isPresented: Binding(
+            get: { saveError != nil }, set: { if !$0 { saveError = nil } }
+        )) {
+            Button("OK", role: .cancel) { saveError = nil }
+        } message: {
+            Text(saveError ?? "Please try again.")
+        }
+    }
+
+    private func select(_ space: SpaceStorage) {
+        guard let index = spaces.firstIndex(where: { $0.persistentModelID == space.persistentModelID }) else { return }
+        selectedSpaceIndex = index
+        currentSpace = space.spaceName
+    }
+
+    private func revealSelection(using proxy: ScrollViewProxy) {
+        if let selectedID { proxy.scrollTo(selectedID, anchor: .center) }
+    }
+
+    private func delete(_ space: SpaceStorage) {
+        guard spaces.count > 1,
+              let deletedIndex = spaces.firstIndex(where: { $0.persistentModelID == space.persistentModelID }) else { return }
+        let previousSelection = selectedID
+        let remaining = spaces.filter { $0.persistentModelID != space.persistentModelID }
+        let nextIndex = remaining.firstIndex(where: { $0.persistentModelID == previousSelection })
+            ?? min(deletedIndex, remaining.count - 1)
+
+        // Flush existing work first so a failed deletion can be rolled back alone.
+        do {
+            try modelContext.save()
+        } catch {
+            saveError = error.localizedDescription
+            return
+        }
+        modelContext.delete(space)
+        do {
+            try modelContext.save()
+            selectedSpaceIndex = nextIndex
+            currentSpace = remaining[nextIndex].spaceName
+        } catch {
+            modelContext.rollback()
+            saveError = error.localizedDescription
+        }
     }
 }

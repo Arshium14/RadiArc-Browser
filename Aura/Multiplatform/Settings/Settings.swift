@@ -8,357 +8,221 @@
 import SwiftUI
 
 struct NewSettings: View {
-    @Environment(\.colorScheme) var colorScheme
-    
+    @EnvironmentObject var settings: SettingsVariables
+    @EnvironmentObject private var variables: ObservableVariables
     @Binding var presentSheet: Bool
-    
-    @State var startHex: String
-    @State var endHex: String
-    //https://search.yahoo.com/search;_ylt=awrnoc_g6wnmmakqngbddwvh;_ylc=x1mdmte5nzgwndg2nwrfcgmybgzyawrmcjidcdpzlhy6c2zwlg06c2itdg9wbgdwcmlka1pobkfqtfvsuw4ubu1qb3hzvklir0eebl9yc2x0azaebl9zdwdnazewbg9yawdpbgnzzwfyy2guewfob28uy29tbhbvcwmwbhbxc3ryawrwcxn0cmwdmarxc3rybamybhf1zxj5a2hpbhrfc3rtcamxnze3odizotq0?p=
-    //https://search.yahoo.com/search;_ylt=AwrNOC_G6WNmmAkQngBDDWVH;_ylc=X1MDMTE5NzgwNDg2NwRfcgMyBGZyAwRmcjIDcDpzLHY6c2ZwLG06c2ItdG9wBGdwcmlkA1pobkFqTFVSUW4ubU1Qb3hZVklIR0EEbl9yc2x0AzAEbl9zdWdnAzEwBG9yaWdpbgNzZWFyY2gueWFob28uY29tBHBvcwMwBHBxc3RyAwRwcXN0cmwDMARxc3RybAMyBHF1ZXJ5A2hpBHRfc3RtcAMxNzE3ODIzOTQ0?p=
-    
-    @StateObject var settings = SettingsVariables()
-    
-    @State var searchEngineOptions = ["Google", "Bing", "DuckDuckGo", "Yahoo!", "Ecosia"]
-    @State var searchEngines = ["Google":"https://www.google.com/search?q=", "Bing":"https://www.bing.com/search?q=", "DuckDuckGo":"https://duckduckgo.com/?q=", "Yahoo!":"https://search.yahoo.com/search?q=", "Ecosia": "https://www.ecosia.org/search?q="]
-    
-    @State private var selectedFaviconShape: String = "circle"
-    
-#if !os(visionOS)
-    @State var settingsButtonTextColor = Color.black
-    #else
-    @State var settingsButtonTextColor = Color.white
-    #endif
-    
+
+    let startHex: String
+    let endHex: String
+
     var body: some View {
-        GeometryReader { geo in
-            NavigationStack {
-                ZStack {
-#if !os(visionOS)
-                    LinearGradient(colors: [Color(hex: startHex), Color(hex: endHex)], startPoint: .bottomLeading, endPoint: .topTrailing).ignoresSafeArea()
-                    #endif
-                    
-                    if settings.prefferedColorScheme == "dark" || (settings.prefferedColorScheme == "automatic" && colorScheme == .dark) {
-                        Color.black.opacity(0.5)
-                            .ignoresSafeArea()
+        NavigationStack {
+            List {
+                Section("Settings") {
+                    NavigationLink {
+                        General(settings: settings, startHex: startHex, endHex: endHex)
+                    } label: {
+                        Label("General", systemImage: "gearshape")
                     }
-                    
-                    ScrollView {
-                        VStack {
-                            Spacer()
-                                .frame(height: 100)
-                            
-                            NavigationLink(destination: {
-                                General(settings: settings, startHex: startHex, endHex: endHex)
-                            }, label: {
-                                ZStack {
-#if !os(visionOS)
-                                    RoundedRectangle(cornerRadius: 10)
-                                        .fill(Color.white)
-                                    #endif
-                                    
-                                    HStack {
-                                        Image("General Icon")
-                                            .resizable()
-                                            .scaledToFit()
-                                            .padding(2)
-                                            .background(content: {
-                                                ZStack {
-                                                    LinearGradient(colors: [Color(hex: startHex), Color(hex: endHex)], startPoint: .bottomLeading, endPoint: .topTrailing).ignoresSafeArea()
-                                                    
-                                                    Color.black.opacity(0.3)
-                                                        .ignoresSafeArea()
-                                                }.cornerRadius(5)
-                                            })
-                                        
-                                        Text("General")
-                                        
-                                        Spacer()
-                                        
-                                        Image(systemName: "chevron.right")
-                                            .padding(.trailing, 10)
-                                        
-                                    }.foregroundStyle(settingsButtonTextColor)
-                                        .padding(10)
-                                }.frame(height: 50)
-                            }).padding([.leading, .trailing, .bottom], 10)
-                            
-                            NavigationLink(destination: {
-                                UISettings(settings: settings, startHex: startHex, endHex: endHex)
-                            }, label: {
-                                ZStack {
-#if !os(visionOS)
-                                    RoundedRectangle(cornerRadius: 10)
-                                        .fill(Color.white)
-                                    #endif
-                                    
-                                    HStack {
-                                        Image("Appearance Icon")
-                                            .resizable()
-                                            .scaledToFit()
-                                            .padding(2)
-                                            .background(content: {
-                                                ZStack {
-                                                    LinearGradient(colors: [Color(hex: startHex), Color(hex: endHex)], startPoint: .bottomLeading, endPoint: .topTrailing).ignoresSafeArea()
-                                                    
-                                                    Color.black.opacity(0.3)
-                                                        .ignoresSafeArea()
-                                                }.cornerRadius(5)
-                                            })
-                                        
-                                        Text("Appearance")
-                                        
-                                        Spacer()
-                                        
-                                        Image(systemName: "chevron.right")
-                                            .padding(.trailing, 10)
-                                        
-                                    }.foregroundStyle(settingsButtonTextColor)
-                                        .padding(10)
-                                }.frame(height: 50)
-                            }).padding([.leading, .trailing, .bottom], 10)
-                            
-                            NavigationLink(destination: {
-                                BoostSettings(settings: settings, startHex: startHex, endHex: endHex)
-                            }, label: {
-                                ZStack {
-#if !os(visionOS)
-                                    RoundedRectangle(cornerRadius: 10)
-                                        .fill(Color.white)
-                                    #endif
-                                    
-                                    HStack {
-                                        Image("Appearance Icon")
-                                            .resizable()
-                                            .scaledToFit()
-                                            .padding(2)
-                                            .background(content: {
-                                                ZStack {
-                                                    LinearGradient(colors: [Color(hex: startHex), Color(hex: endHex)], startPoint: .bottomLeading, endPoint: .topTrailing).ignoresSafeArea()
-                                                    
-                                                    Color.black.opacity(0.3)
-                                                        .ignoresSafeArea()
-                                                }.cornerRadius(5)
-                                            })
-                                        
-                                        Text("Boost and JavaScript Injection Settings")
-                                        
-                                        Spacer()
-                                        
-                                        Image(systemName: "chevron.right")
-                                            .padding(.trailing, 10)
-                                        
-                                    }.foregroundStyle(settingsButtonTextColor)
-                                        .padding(10)
-                                }.frame(height: 50)
-                            }).padding([.leading, .trailing, .bottom], 10)
-                            
-                            
-                            NavigationLink(destination: {
-                                SearchSettings(settings: settings, startHex: startHex, endHex: endHex)
-                            }, label: {
-                                ZStack {
-#if !os(visionOS)
-                                    RoundedRectangle(cornerRadius: 10)
-                                        .fill(Color.white)
-                                    #endif
-                                    
-                                    HStack {
-                                        Image("Search Icon")
-                                            .resizable()
-                                            .scaledToFit()
-                                            .padding(2)
-                                            .background(content: {
-                                                ZStack {
-                                                    LinearGradient(colors: [Color(hex: startHex), Color(hex: endHex)], startPoint: .bottomLeading, endPoint: .topTrailing).ignoresSafeArea()
-                                                    
-                                                    Color.black.opacity(0.3)
-                                                        .ignoresSafeArea()
-                                                }.cornerRadius(5)
-                                            })
-                                        
-                                        Text("Search Settings")
-                                        
-                                        Spacer()
-                                        
-                                        Image(systemName: "chevron.right")
-                                            .padding(.trailing, 10)
-                                        
-                                    }.foregroundStyle(settingsButtonTextColor)
-                                        .padding(10)
-                                }.frame(height: 50)
-                            }).padding([.leading, .trailing, .bottom], 10)
-                            
-                            
-                            /*
-                            NavigationLink(destination: {
-                                
-                            }, label: {
-                                ZStack {
-#if !os(visionOS)
-                                    RoundedRectangle(cornerRadius: 10)
-                                        .fill(Color.white)
-                                    #endif
-                                    
-                                    HStack {
-                                        Image("Keyboard Icon")
-                                            .resizable()
-                                            .scaledToFit()
-                                            .padding(2)
-                                            .background(content: {
-                                                ZStack {
-                                                    LinearGradient(colors: [Color(hex: startHex), Color(hex: endHex)], startPoint: .bottomLeading, endPoint: .topTrailing).ignoresSafeArea()
-                                                    
-                                                    Color.black.opacity(0.3)
-                                                        .ignoresSafeArea()
-                                                }.cornerRadius(5)
-                                            })
-                                        
-                                        Text("Keyboard Shortcuts")
-                                        
-                                        Spacer()
-                                        
-                                        Image(systemName: "chevron.right")
-                                            .padding(.trailing, 10)
-                                        
-                                    }.foregroundStyle(settingsButtonTextColor)
-                                        .padding(10)
-                                }.frame(height: 50)
-                            }).padding([.leading, .trailing, .bottom], 10)
-                            */
-                            
-                            NavigationLink(destination: {
-                                Favicons(settings: settings, startHex: startHex, endHex: endHex)
-                            }, label: {
-                                ZStack {
-#if !os(visionOS)
-                                    RoundedRectangle(cornerRadius: 10)
-                                        .fill(Color.white)
-                                    #endif
-                                    
-                                    HStack {
-                                        Image("Favicon Icon")
-                                            .resizable()
-                                            .scaledToFit()
-                                            .padding(2)
-                                            .background(content: {
-                                                ZStack {
-                                                    LinearGradient(colors: [Color(hex: startHex), Color(hex: endHex)], startPoint: .bottomLeading, endPoint: .topTrailing).ignoresSafeArea()
-                                                    
-                                                    Color.black.opacity(0.3)
-                                                        .ignoresSafeArea()
-                                                }.cornerRadius(5)
-                                            })
-                                        
-                                        Text("Favicons")
-                                        
-                                        Spacer()
-                                        
-                                        Image(systemName: "chevron.right")
-                                            .padding(.trailing, 10)
-                                        
-                                    }.foregroundStyle(settingsButtonTextColor)
-                                        .padding(10)
-                                }.frame(height: 50)
-                            }).padding([.leading, .trailing, .bottom], 10)
-                            
-                            
-                            NavigationLink(destination: {
-                                AISettings(settings: settings, startHex: startHex, endHex: endHex)
-                            }, label: {
-                                ZStack {
-#if !os(visionOS)
-                                    RoundedRectangle(cornerRadius: 10)
-                                        .fill(Color.white)
-                                    #endif
-                                    
-                                    HStack {
-                                        Image("Keyboard Icon")
-                                            .resizable()
-                                            .scaledToFit()
-                                            .padding(2)
-                                            .background(content: {
-                                                ZStack {
-                                                    LinearGradient(colors: [Color(hex: startHex), Color(hex: endHex)], startPoint: .bottomLeading, endPoint: .topTrailing).ignoresSafeArea()
-                                                    
-                                                    Color.black.opacity(0.3)
-                                                        .ignoresSafeArea()
-                                                }.cornerRadius(5)
-                                            })
-                                        
-                                        Text("AI Features")
-                                        
-                                        Spacer()
-                                        
-                                        Image(systemName: "chevron.right")
-                                            .padding(.trailing, 10)
-                                        
-                                    }.foregroundStyle(settingsButtonTextColor)
-                                        .padding(10)
-                                }.frame(height: 50)
-                            }).padding([.leading, .trailing, .bottom], 10)
-                            
-                            
-                            Button(action: {
-                                presentSheet = false
-                                settings.email = ""
-                                settings.onboardingDone = false
-                            }, label: {
-                                ZStack {
-#if !os(visionOS)
-                                    RoundedRectangle(cornerRadius: 10)
-                                        .fill(Color.white)
-                                    #endif
-                                    
-                                    HStack {
-                                        Image("Reset Icon")
-                                            .resizable()
-                                            .scaledToFit()
-                                            .padding(2)
-                                            .background(content: {
-                                                ZStack {
-                                                    LinearGradient(colors: [Color(hex: startHex), Color(hex: endHex)], startPoint: .bottomLeading, endPoint: .topTrailing).ignoresSafeArea()
-                                                    
-                                                    Color.black.opacity(0.3)
-                                                        .ignoresSafeArea()
-                                                }.cornerRadius(5)
-                                            })
-                                        
-                                        Text("Reset Onboarding")
-                                        
-                                        Spacer()
-                                        
-                                    }.foregroundStyle(settingsButtonTextColor)
-                                        .padding(10)
-                                }.frame(height: 50)
-                            }).padding([.leading, .trailing, .bottom], 10)
-                        }
+                    NavigationLink {
+                        UISettings(settings: settings, startHex: startHex, endHex: endHex)
+                    } label: {
+                        Label("Appearance", systemImage: "circle.lefthalf.filled")
                     }
-                    
-                    VStack {
-                        HStack {
-                            Spacer()
-                            
-                            Button {
-                                presentSheet = false
-                            } label: {
-                                Text("Done")
-                            }
-#if !os(visionOS)
-                            .buttonStyle(NewButtonStyle(startHex: startHex, endHex: endHex))
-                            #endif
-                                .padding(15)
-                            
-                        }
-                        
-                        Spacer()
+                    NavigationLink {
+                        PrivacySettings(settings: settings, history: variables.history)
+                    } label: {
+                        Label("Privacy & History", systemImage: "hand.raised")
                     }
+                    NavigationLink {
+                        ShortcutSettings(settings: settings, startHex: startHex, endHex: endHex)
+                    } label: {
+                        Label("Keyboard Shortcuts", systemImage: "keyboard")
+                    }
+                }
+
+                Section {
+                    NavigationLink {
+                        AISettings(settings: settings, startHex: startHex, endHex: endHex)
+                    } label: {
+                        Label("AI Features", systemImage: "sparkles")
+                    }
+                    NavigationLink {
+                        BoostSettings(settings: settings, startHex: startHex, endHex: endHex)
+                    } label: {
+                        Label("Boosts & Advanced", systemImage: "slider.horizontal.3")
+                    }
+                }
+
+                Section {
+                    NavigationLink {
+                        SettingsAboutView(settings: settings, presentSheet: $presentSheet)
+                    } label: {
+                        Label("About Sol Browser", systemImage: "info.circle")
+                    }
+                } footer: {
+                    Text("Sol Browser · Built on Aura Browser")
+                }
+            }
+            .navigationTitle("Sol Browser")
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Done") {
+                        presentSheet = false
+                    }
+                    .keyboardShortcut(.cancelAction)
                 }
             }
         }
     }
 }
 
+private struct PrivacySettings: View {
+    @ObservedObject var settings: SettingsVariables
+    @ObservedObject var history: HistoryObservable
+    @StateObject private var snapshotRefresher = SnapshotRefresher()
+    @State private var confirmClearHistory = false
+    @State private var confirmDeleteSnapshots = false
+    @State private var savedSearchCount = 0
+
+    var body: some View {
+        Form {
+            Section {
+                Toggle("Save Browsing History", isOn: $settings.historyEnabled)
+                NavigationLink("Browsing History") {
+                    SettingsHistoryView(history: history)
+                }
+                Button("Clear Browsing History…", role: .destructive) {
+                    confirmClearHistory = true
+                }
+                .disabled(history.items.isEmpty && savedSearchCount == 0)
+            } header: {
+                Text("History")
+            } footer: {
+                Text("Turning off history stops saving new visits. Existing history stays until you delete it. Clearing history also removes saved command bar searches, including Browse for Me prompts. It does not remove cookies, website data, or open tabs.")
+            }
+
+            Section {
+                Toggle("Block Ads", isOn: $settings.adBlockEnabled)
+            } header: {
+                Text("Content Blocking")
+            } footer: {
+                Text("Use the built-in experimental ad blocker. Changes apply to newly loaded tabs; existing tabs may need to be closed and reopened.")
+            }
+
+            Section {
+                Button("Delete Website Snapshots…", role: .destructive) {
+                    confirmDeleteSnapshots = true
+                }
+            } header: {
+                Text("Local Storage")
+            } footer: {
+                Text("Remove saved page previews. This does not clear cookies or browsing history. Snapshots can be recreated as you browse.")
+            }
+        }
+        .navigationTitle("Privacy & History")
+        .onAppear {
+            savedSearchCount = UserDefaults.standard.stringArray(forKey: "commandBarHistory")?.count ?? 0
+        }
+        .confirmationDialog("Clear all browsing history?", isPresented: $confirmClearHistory, titleVisibility: .visible) {
+            Button("Clear History", role: .destructive) {
+                history.items.removeAll()
+                UserDefaults.standard.removeObject(forKey: "commandBarHistory")
+                savedSearchCount = 0
+            }
+            Button("Cancel", role: .cancel) { }
+        } message: {
+            Text("This also clears saved command bar searches and cannot be undone. Open tabs and website data will be kept.")
+        }
+        .confirmationDialog("Delete all website snapshots?", isPresented: $confirmDeleteSnapshots, titleVisibility: .visible) {
+            Button("Delete Snapshots", role: .destructive) {
+                snapshotRefresher.deleteAllSnapshots()
+            }
+            Button("Cancel", role: .cancel) { }
+        }
+    }
+}
+
+private struct SettingsHistoryView: View {
+    @ObservedObject var history: HistoryObservable
+
+    var body: some View {
+        List {
+            ForEach(history.items) { item in
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(item.title.flatMap { $0.isEmpty ? nil : $0 } ?? item.websiteURL)
+                        .font(.headline)
+                    Text(item.websiteURL)
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                        .textSelection(.enabled)
+                    Text(item.date, format: .dateTime.year().month().day().hour().minute())
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                .accessibilityElement(children: .combine)
+            }
+            .onDelete(perform: history.removeItem)
+        }
+        .overlay {
+            if history.items.isEmpty {
+                ContentUnavailableView("No Browsing History", systemImage: "clock", description: Text("Saved visits will appear here."))
+            }
+        }
+        .navigationTitle("Browsing History")
+        #if os(iOS)
+        .toolbar {
+            EditButton()
+                .disabled(history.items.isEmpty)
+        }
+        #endif
+    }
+}
+
+private struct SettingsAboutView: View {
+    @ObservedObject var settings: SettingsVariables
+    @Binding var presentSheet: Bool
+    @State private var confirmResetOnboarding = false
+
+    var body: some View {
+        Form {
+            Section("Sol Browser") {
+                LabeledContent("Version", value: Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "Unknown")
+                LabeledContent("Build", value: Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "Unknown")
+                Text("An independent browser built on Aura Browser. Not affiliated with Arc, The Browser Company, or Zen Browser.")
+                    .foregroundStyle(.secondary)
+            }
+
+            Section("Attribution & License") {
+                Text("Aura Browser by DoorHinge Apps, Reyna Myers, and contributors.")
+                Link("Aura Browser Source", destination: URL(string: "https://github.com/doorhinge-apps/Aura-Browser")!)
+                Link("Mozilla Public License 2.0", destination: URL(string: "https://www.mozilla.org/MPL/2.0/")!)
+                Text("Sol Browser and its Aura-derived source are distributed under MPL-2.0. Original copyright notices are retained in the source.")
+                    .foregroundStyle(.secondary)
+            }
+
+            Section {
+                Button("Reset Onboarding…", role: .destructive) {
+                    confirmResetOnboarding = true
+                }
+            } footer: {
+                Text("Show setup again and clear the onboarding email. Your tabs and browser preferences are kept.")
+            }
+        }
+        .navigationTitle("About")
+        .confirmationDialog("Reset onboarding?", isPresented: $confirmResetOnboarding, titleVisibility: .visible) {
+            Button("Reset Onboarding", role: .destructive) {
+                settings.email = ""
+                settings.onboardingDone = false
+                presentSheet = false
+            }
+            Button("Cancel", role: .cancel) { }
+        }
+    }
+}
+
 #Preview {
     NewSettings(presentSheet: .constant(true), startHex: "8A3CEF", endHex: "84F5FE")
+        .environmentObject(SettingsVariables())
+        .environmentObject(ObservableVariables())
 }

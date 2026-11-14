@@ -13,165 +13,108 @@ import SwiftData
 import WebKit
 
 struct TabbedPagedSidebar: View {
-    @Environment(\.modelContext) var modelContext
-    @Query(sort: \SpaceStorage.spaceIndex) var spaces: [SpaceStorage]
-    
-#if os(visionOS)
-    @Environment(\.openWindow) private var openWindow
-    @Environment(\.dismissWindow) private var dismissWindow
-#endif
-    
+    @Environment(\.modelContext) private var modelContext
+    @Query(sort: \SpaceStorage.spaceIndex) private var spaces: [SpaceStorage]
     @EnvironmentObject var variables: ObservableVariables
     @EnvironmentObject var settings: SettingsVariables
-    
-    @AppStorage("currentSpace") var currentSpace = "Untitled"
-    
-    let timer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
-    
-    @State private var startHex = "ffffff"
-    @State private var endHex = "000000"
-    
-    @State private var settingsButtonHover = false
-    
-    @AppStorage("selectedSpaceIndex") var selectedSpaceIndex = 0
-    
-    @State var scrollLimiter = false
-    @State var scrollPositionOffset = 0.0
-    
-    @State var appearOffset = 0.0
-    
-    @State private var scrollPosition: CGPoint = .zero
-    @State private var horizontalScrollPosition: CGPoint = .zero
-    
-    @State var hasSetThing = false
-    
-//    var fullGeo: GeometryProxy
-    
-    @State var isHovering: Bool
-    
+    @AppStorage("currentSpace") private var currentSpace = "Untitled"
+    @AppStorage("selectedSpaceIndex") private var selectedSpaceIndex = 0
+    @State private var saveError: String?
+    var isHovering: Bool
+
+#if os(visionOS)
+    @Environment(\.openWindow) private var openWindow
+#endif
+
     var body: some View {
         GeometryReader { geo in
-            VStack {
+            VStack(spacing: 8) {
                 ToolbarButtonsView(geo: geo)
-                    .frame(height: 40)
-                    .padding([.top, .horizontal], 5)
-                
-                TabView(selection: $selectedSpaceIndex) {
-                    ForEach(spaces.indices, id:\.self) { space in
-                        VStack {
-                            SidebarSpaceParameter(currentSelectedSpaceIndex: space, geo: geo)
-                                .environmentObject(variables)
-                                .id(space.description)
-                                .padding(.horizontal, 10)
-                        }
-                        .containerRelativeFrame(.horizontal)
-                        .animation(.easeOut)
-                        .frame(width: isHovering ? 300: variables.hideSidebar ? 0: 300)
-                        .tag(space)
-                        .tabItem({
-                            Label(spaces[space].spaceName, systemImage: spaces[space].spaceIcon)
-                        })
-                    }
-                }.tabViewStyle(.page(indexDisplayMode: .never))
-                
-                
-                HStack {
+                    .frame(height: 44)
+                    // Swiping here never competes with vertical tab scrolling.
+                    .contentShape(Rectangle())
+                    .simultaneousGesture(spaceSwipe)
+                    .accessibilityHint(settings.swipingSpaces ? "Swipe horizontally on the toolbar to switch spaces" : "")
+
+                if spaces.indices.contains(selectedSpaceIndex) {
+                    SidebarSpaceParameter(currentSelectedSpaceIndex: selectedSpaceIndex, geo: geo)
+                        .id(spaces[selectedSpaceIndex].persistentModelID)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .transaction { $0.animation = nil }
+                } else {
+                    Spacer(minLength: 0)
+                }
+
+                HStack(spacing: 2) {
                     Button {
-                        variables.showSettings.toggle()
+                        variables.showSettings = true
                     } label: {
-                        ZStack {
-                            HoverButtonDisabledVision(hoverInteraction: $settingsButtonHover)
-                            
-                            Image(systemName: "gearshape")
-                                .resizable()
-                                .scaledToFit()
-                                .frame(width: 20, height: 20)
-                                .foregroundStyle(variables.textColor)
-                                .opacity(settingsButtonHover ? 1.0: 0.5)
-                            
-                        }.frame(width: 40, height: 40).cornerRadius(7)
-#if !os(visionOS) && !os(macOS)
-                            .hoverEffect(.lift)
-                            .hoverEffectDisabled(!settings.hoverEffectsAbsorbCursor)
-                        #endif
-                            .onHover(perform: { hovering in
-                                if hovering {
-                                    settingsButtonHover = true
-                                }
-                                else {
-                                    settingsButtonHover = false
-                                }
-                            })
-                    }.buttonStyle(.plain)
-                        .sheet(isPresented: $variables.showSettings) {
-                        let safeIndex = min(max(selectedSpaceIndex, 0), max(spaces.count - 1, 0))
-                        let spaceStart = spaces.isEmpty ? startHex : (!spaces[safeIndex].startHex.isEmpty ? spaces[safeIndex].startHex : startHex)
-                        let spaceEnd = spaces.isEmpty ? endHex : (!spaces[safeIndex].endHex.isEmpty ? spaces[safeIndex].endHex : endHex)
-                        if #available(iOS 18.0, visionOS 2.0, *) {
-                            NewSettings(presentSheet: $variables.showSettings, startHex: spaceStart, endHex: spaceEnd)
-                                .presentationSizing(.form)
-                        } else {
-                            NewSettings(presentSheet: $variables.showSettings, startHex: spaceStart, endHex: spaceEnd)
-                        }
+                        Image(systemName: "gearshape").frame(width: 44, height: 44)
                     }
-                    
-                    Spacer()
-                    
+                    .accessibilityLabel("Settings")
+
                     SpacePicker(currentSpace: $currentSpace, selectedSpaceIndex: $selectedSpaceIndex)
-                    
-                    Menu(content: {
-                        Button(action: {
-                            modelContext.insert(SpaceStorage(spaceIndex: (spaces.map(\.spaceIndex).max() ?? -1) + 1, spaceName: "Untitled \(spaces.count)", spaceIcon: "scribble.variable", favoritesUrls: [], pinnedUrls: [], tabUrls: []))
-                        }, label: {
-                            Label("Add Space", systemImage: "square.badge.plus")
-                        })
-                    }, label: {
-                        ZStack {
-#if !os(visionOS)
-                            Color(.white)
-                                .opacity(variables.hoverSpace == "veryLongTextForHoveringOnPlusSignSoIDontHaveToUseAnotherVariable" ? 0.5: 0.0)
-                            #endif
-                            
-                            Image(systemName: "plus")
-                                .resizable()
-                                .scaledToFit()
-                                .frame(width: 20, height: 20)
-                                .foregroundStyle(variables.textColor)
-                                .opacity(variables.hoverSpace == "veryLongTextForHoveringOnPlusSignSoIDontHaveToUseAnotherVariable" ? 1.0: 0.5)
-                            
-                        }.frame(width: 40, height: 40).cornerRadius(7)
-#if !os(visionOS) && !os(macOS)
-                            .hoverEffect(.lift)
-                            .hoverEffectDisabled(!settings.hoverEffectsAbsorbCursor)
+                        .frame(minWidth: 0, maxWidth: .infinity)
+
+                    Button(action: addSpace) {
+                        Image(systemName: "plus").frame(width: 44, height: 44)
+                    }
+                    .accessibilityLabel("Add Space")
+                }
+                .font(.body)
+                .foregroundStyle(.primary)
+                .buttonStyle(.plain)
+            }
+            .padding(.horizontal, 4)
+        }
+        // Accept the parent's actual width, including its overlay padding.
+        .frame(minWidth: 0, idealWidth: 300, maxWidth: 300)
+        .onAppear(perform: normalizeSelection)
+        .onChange(of: spaces.map(\.persistentModelID)) { normalizeSelection() }
+        .alert("Couldn’t Add Space", isPresented: Binding(
+            get: { saveError != nil }, set: { if !$0 { saveError = nil } }
+        )) {
+            Button("OK", role: .cancel) { saveError = nil }
+        } message: {
+            Text(saveError ?? "Please try again.")
+        }
+#if os(visionOS)
+        .onAppear {
+            if variables.isFirstWindow {
+                openWindow(id: "mainWindow")
+                variables.isFirstWindow = false
+            }
+        }
 #endif
-                            .onHover(perform: { hovering in
-                                if hovering {
-                                    variables.hoverSpace = "veryLongTextForHoveringOnPlusSignSoIDontHaveToUseAnotherVariable"
-                                }
-                                else {
-                                    variables.hoverSpace = ""
-                                }
-                            })
-                    }).buttonStyle(.plain)
-                }
-            }
-        }.ignoresSafeArea()
-#if !os(visionOS)
-            .frame(width: isHovering ? 300: variables.hideSidebar ? 0: 300)
-            .offset(x: isHovering ? 0: variables.hideSidebar ? 320 * (settings.sidebarLeft ? -1: 1): 0)
-        #endif
-            .scrollTargetBehavior(.viewAligned(limitBehavior: .always))
-            .scrollIndicators(.hidden)
-        #if os(visionOS)
-            .frame(width: 300)
-            .onAppear() {
-                if variables.isFirstWindow {
-                    openWindow(id: "mainWindow")
-                    
-                    variables.isFirstWindow = false
-                }
-            }
-        #endif
+    }
+
+    private var spaceSwipe: some Gesture {
+        DragGesture(minimumDistance: 48).onEnded { value in
+            guard settings.swipingSpaces, abs(value.translation.width) > 80,
+                  abs(value.translation.width) > abs(value.translation.height) * 2 else { return }
+            let next = selectedSpaceIndex + (value.translation.width < 0 ? 1 : -1)
+            guard spaces.indices.contains(next) else { return }
+            selectedSpaceIndex = next
+            currentSpace = spaces[next].spaceName
+        }
+    }
+
+    private func normalizeSelection() {
+        guard !spaces.isEmpty else { return }
+        selectedSpaceIndex = min(max(selectedSpaceIndex, 0), spaces.count - 1)
+    }
+
+    private func addSpace() {
+        let space = SpaceStorage(spaceIndex: (spaces.map(\.spaceIndex).max() ?? -1) + 1,
+                                 spaceName: "Untitled \(spaces.count + 1)", spaceIcon: SpaceIcon.fallback,
+                                 favoritesUrls: [], pinnedUrls: [], tabUrls: [])
+        modelContext.insert(space)
+        do {
+            try modelContext.save()
+        } catch {
+            modelContext.delete(space)
+            saveError = error.localizedDescription
+        }
     }
 }
 

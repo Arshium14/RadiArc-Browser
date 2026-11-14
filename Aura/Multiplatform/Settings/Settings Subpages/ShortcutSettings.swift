@@ -8,85 +8,78 @@
 import SwiftUI
 
 struct ShortcutSettings: View {
-    @Environment(\.colorScheme) var colorScheme
-    
     @ObservedObject var settings: SettingsVariables
-    
-    @StateObject var shortcuts = KeyboardShortcuts()
-    
-    @State var startHex: String
-    @State var endHex: String
-    
-    @State private var selectedFaviconShape: String = "circle"
-    
-    @State var iconRadius = 0
-#if !os(macOS)
-    @StateObject var motionManager = MotionManager()
-#endif
-    private let maxDegrees: Double = 30
-    private let rotationScale: Double = 0.5
-    
-    @State var editingShortcut = false
-    
-    @FocusState private var editingShortcutFocus: Bool
-    
+    let startHex: String
+    let endHex: String
+
+    // Observe the same persisted bindings that the browser's shortcut parser uses.
+    @AppStorage("toggleSidebar - Shortcut") private var toggleSidebar = "⌘, s"
+    @AppStorage("newTab - Shortcut") private var newTab = "⌘, t"
+    @AppStorage("commandBar - Shortcut") private var commandBar = "⌘, l"
+    @AppStorage("goBack - Shortcut") private var goBack = "⌘, ["
+    @AppStorage("goForward - Shortcut") private var goForward = "⌘, ]"
+    @AppStorage("reload - Shortcut") private var reload = "⌘, r"
+    @State private var confirmReset = false
+
     var body: some View {
-        ZStack {
-#if !os(visionOS)
-            LinearGradient(colors: [Color(hex: startHex), Color(hex: endHex)], startPoint: .bottomLeading, endPoint: .topTrailing).ignoresSafeArea()
-#endif
-            
-            if settings.prefferedColorScheme == "dark" || (settings.prefferedColorScheme == "automatic" && colorScheme == .dark) {
-                Color.black.opacity(0.5)
-                    .ignoresSafeArea()
+        Form {
+            Section {
+                shortcutRow("New Tab", shortcut: newTab)
+                shortcutRow("Command Bar", shortcut: commandBar)
+                shortcutRow("Toggle Sidebar", shortcut: toggleSidebar)
+                shortcutRow("Go Back", shortcut: goBack)
+                shortcutRow("Go Forward", shortcut: goForward)
+                shortcutRow("Reload", shortcut: reload)
+                shortcutRow("Close Tab", shortcut: "⌘, w")
+                shortcutRow("Settings", shortcut: "⌘, ,")
+            } header: {
+                Text("Browser Shortcuts")
+            } footer: {
+                Text("Connect a hardware keyboard to use these shortcuts. Hold Command to see available actions. The values above reflect your saved bindings.")
             }
-            
-            ScrollView {
-                VStack {
-                    ZStack {
-                        RoundedRectangle(cornerRadius: 25)
-                            .fill(Color.black.opacity(0.5))
-                            .frame(width: editingShortcut ? 305: 130, height: 145)
-                            .offset(y: 8)
-                        
-                        RoundedRectangle(cornerRadius: 25)
-                            .stroke(Color.black.opacity(0.2), lineWidth: 10)
-                            .fill(Color.white)
-                            .frame(width: editingShortcut ? 300: 125, height: 125)
-                        
-                        HStack {
-                            Text(shortcuts.newTab.replacingOccurrences(of: ", ", with: "").capitalized)
-                                .font(.system(size: 40, weight: .bold, design: .rounded))
-                            
-                            if editingShortcut {
-                                Spacer()
-                            }
-                        }.frame(width: editingShortcut ? 300: 125, height: 125)
-                        
-                        TextField("⌘T", text: $shortcuts.newTab)
-                            .disabled(!editingShortcut)
-                            .focused($editingShortcutFocus)
-                        
-                    }.onTapGesture(perform: {
-                        withAnimation {
-                            editingShortcut.toggle()
-                        }
-                        editingShortcutFocus = true
-                    })
-                    
-                    Spacer()
-                        .frame(height: 20)
-                    
-                }.padding(10)
+
+            Section {
+                Button("Reset Keyboard Shortcuts…", role: .destructive) {
+                    confirmReset = true
+                }
+            } footer: {
+                Text("Restore the browser's default key bindings. Other preferences are not changed.")
             }
         }
-#if !os(macOS)
-        .toolbarBackground(.hidden, for: .navigationBar)
-#endif
+        .navigationTitle("Keyboard Shortcuts")
+        .confirmationDialog("Reset keyboard shortcuts?", isPresented: $confirmReset, titleVisibility: .visible) {
+            Button("Reset Shortcuts", role: .destructive) {
+                settings.objectWillChange.send()
+                settings.shortcuts.resetShortcuts()
+            }
+            Button("Cancel", role: .cancel) { }
+        }
+    }
+
+    private func shortcutRow(_ title: String, shortcut: String) -> some View {
+        let keys = shortcut.components(separatedBy: ", ")
+        let spokenKeys = keys.map { key in
+            switch key {
+            case "⌘": return "Command"
+            case "⌥": return "Option"
+            case "⌃": return "Control"
+            case "⇧": return "Shift"
+            case "[": return "Left Bracket"
+            case "]": return "Right Bracket"
+            case ",": return "Comma"
+            default: return key.uppercased()
+            }
+        }.joined(separator: " + ")
+
+        return LabeledContent(title, value: keys.joined().uppercased())
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel(title)
+            .accessibilityValue(spokenKeys)
     }
 }
 
-
 #Preview {
-    ShortcutSettings(settings: SettingsVariables(), startHex: "8A3CEF", endHex: "84F5FE")
+    NavigationStack {
+        ShortcutSettings(settings: SettingsVariables(), startHex: "8A3CEF", endHex: "84F5FE")
+    }
 }

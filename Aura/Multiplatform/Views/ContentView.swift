@@ -20,6 +20,7 @@ let defaults = UserDefaults.standard
 
 struct ContentView: View {
     @Environment(\.colorScheme) var colorScheme
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     
     @Environment(\.modelContext) var modelContext
     @Query(sort: \SpaceStorage.spaceIndex) var spaces: [SpaceStorage]
@@ -32,20 +33,14 @@ struct ContentView: View {
     
     @AppStorage("currentSpace") var currentSpace = "Untitled"
     
-    let timer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
-    let rotationTimer = Timer.publish(every: 1.5, on: .main, in: .common).autoconnect()
-    
     @AppStorage("startColorHex") var startHex = "8A3CEF"
     @AppStorage("endColorHex") var endHex = "84F5FE"
-    @AppStorage("textColorHex") var textHex = "ffffff"
     
     @State var boostEditor = true
     @State var currentBoostText = ""
     @State var currentPassedClassesString = ""
     @State var generateAICSS = false
     
-    
-    @State var dragSidebarOffset: CGFloat = 0.0
     
     @AppStorage("hideSidebar") var hideSidebar = false
     
@@ -77,19 +72,7 @@ struct ContentView: View {
     
     var body: some View {
         ZStack {
-#if !os(visionOS)
-            if selectedSpaceIndex < spaces.count && (!spaces[selectedSpaceIndex].startHex.isEmpty && !spaces[selectedSpaceIndex].endHex.isEmpty) {
-                LinearGradient(colors: [Color(hex: spaces[selectedSpaceIndex].startHex), Color(hex: spaces[selectedSpaceIndex].endHex)], startPoint: .bottomLeading, endPoint: .topTrailing).ignoresSafeArea()
-            }
-            else {
-                LinearGradient(colors: [variables.startColor, variables.endColor], startPoint: .bottomLeading, endPoint: .topTrailing).ignoresSafeArea()
-            }
-#endif
-            
-            if settings.prefferedColorScheme == "dark" || (settings.prefferedColorScheme == "automatic" && colorScheme == .dark) {
-                Color.black.opacity(0.5)
-                    .ignoresSafeArea()
-            }
+            shellBackground.ignoresSafeArea()
             
             if UIDevice.current.userInterfaceIdiom != .phone {
                 GeometryReader { geo in
@@ -104,7 +87,7 @@ struct ContentView: View {
                                     
                                     HStack(spacing: 0) {
 #if !os(visionOS)
-                                        if settings.sidebarLeft && !settings.horizontalTabBar {
+                                        if settings.sidebarLeft && !settings.horizontalTabBar && !hideSidebar {
                                             //PagedSidebar(fullGeo: geo)
                                             TabbedPagedSidebar(isHovering: false)
                                                 .padding(5)
@@ -114,50 +97,12 @@ struct ContentView: View {
                                         HStack {
                                             GeometryReader { webGeo in
                                                 ZStack {
-                                                    Color.white
-                                                        .opacity(0.4)
-                                                        .cornerRadius(10)
+                                                    Color(uiColor: .systemBackground)
+                                                        .cornerRadius(12)
                                                     
                                                     
                                                     //MARK: - WebView
                                                     CurrentWebView(webGeo: webGeo)
-                                                        .overlay(content: {
-                                                            loadingIndicators(for: manager.selectedWebView?.webView.isLoading ?? false)
-                                                        })
-                                                        .onChange(of: manager.selectedWebView?.webView.url) { oldValue, newValue in
-                                                            if settings.forceDarkMode == "basic" {
-                                                                if settings.forceDarkModeTime != "light" {
-                                                                    if settings.forceDarkModeTime == "system" && colorScheme == .dark {
-                                                                        DispatchQueue.main.asyncAfter(deadline: .now() + settings.jsInjectionDelay) {
-                                                                            manager.selectedWebView?.JSperformScript(script: forceDarkModeBasic)
-                                                                        }
-                                                                    }
-                                                                    if settings.forceDarkModeTime == "dark" {
-                                                                        DispatchQueue.main.asyncAfter(deadline: .now() + settings.jsInjectionDelay) {
-                                                                            manager.selectedWebView?.JSperformScript(script: forceDarkModeBasic)
-                                                                        }
-                                                                    }
-                                                                }
-                                                            }
-                                                            else if settings.forceDarkMode == "advanced" {
-                                                                if settings.forceDarkModeTime != "light" {
-                                                                    if settings.forceDarkModeTime == "system" && colorScheme == .dark {
-                                                                        DispatchQueue.main.asyncAfter(deadline: .now() + settings.jsInjectionDelay) {
-                                                                            manager.selectedWebView?.JSperformScript(script: forceDarkModeAdvanced)
-                                                                            manager.selectedWebView?.webView.evaluateJavaScript("window.toggleDarkMode(true);")
-                                                                            manager.selectedWebView?.webView.evaluateJavaScript("window.setBrightness(75);")
-                                                                        }
-                                                                    }
-                                                                    if settings.forceDarkModeTime == "dark" {
-                                                                        DispatchQueue.main.asyncAfter(deadline: .now() + settings.jsInjectionDelay) {
-                                                                            manager.selectedWebView?.JSperformScript(script: forceDarkModeAdvanced)
-                                                                            manager.selectedWebView?.webView.evaluateJavaScript("window.toggleDarkMode(true);")
-                                                                            manager.selectedWebView?.webView.evaluateJavaScript("window.setBrightness(75);")
-                                                                        }
-                                                                    }
-                                                                }
-                                                            }
-                                                        }
                                                     
                                                     if !settings.swipeNavigationDisabled {
                                                         if manager.selectedWebView != nil {
@@ -210,15 +155,6 @@ struct ContentView: View {
                                                         
                                                         Button {
                                                             if manager.selectedWebView?.webView.canGoBack ?? true {
-                                                                withAnimation(.bouncy, {
-                                                                    variables.backArrowPulse = true
-                                                                })
-                                                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.2, execute: {
-                                                                    withAnimation(.bouncy, {
-                                                                        variables.backArrowPulse = false
-                                                                    })
-                                                                })
-                                                                
                                                                 manager.selectedWebView?.webView.goBack()
                                                             }
                                                         } label: {
@@ -229,14 +165,6 @@ struct ContentView: View {
                                                         
                                                         Button {
                                                             if manager.selectedWebView?.webView.canGoForward ?? true {
-                                                                withAnimation(.bouncy, {
-                                                                    variables.forwardArrowPulse = true
-                                                                })
-                                                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3, execute: {
-                                                                    withAnimation(.bouncy, {
-                                                                        variables.forwardArrowPulse = false
-                                                                    })
-                                                                })
                                                                 manager.selectedWebView?.webView.goForward()
                                                             }
                                                         } label: {
@@ -255,10 +183,6 @@ struct ContentView: View {
                                                         
                                                         
                                                         Button {
-                                                            withAnimation(.bouncy, {
-                                                                variables.reloadRotation += 360
-                                                            })
-                                                            
                                                             variables.searchInSidebar = manager.selectedWebView?.webView.url?.absoluteString ?? variables.searchInSidebar
                                                             manager.selectedWebView?.reload()
                                                             
@@ -285,38 +209,6 @@ struct ContentView: View {
                                                                 }
                                                             }
                                                             
-                                                            if settings.forceDarkMode == "basic" {
-                                                                if settings.forceDarkModeTime != "light" {
-                                                                    if settings.forceDarkModeTime == "system" && colorScheme == .dark {
-                                                                        DispatchQueue.main.asyncAfter(deadline: .now() + settings.jsInjectionDelay) {
-                                                                            manager.selectedWebView?.JSperformScript(script: forceDarkModeBasic)
-                                                                        }
-                                                                    }
-                                                                    if settings.forceDarkModeTime == "dark" {
-                                                                        DispatchQueue.main.asyncAfter(deadline: .now() + settings.jsInjectionDelay) {
-                                                                            manager.selectedWebView?.JSperformScript(script: forceDarkModeBasic)
-                                                                        }
-                                                                    }
-                                                                }
-                                                            }
-                                                            else if settings.forceDarkMode == "advanced" {
-                                                                if settings.forceDarkModeTime != "light" {
-                                                                    if settings.forceDarkModeTime == "system" && colorScheme == .dark {
-                                                                        DispatchQueue.main.asyncAfter(deadline: .now() + settings.jsInjectionDelay) {
-                                                                            manager.selectedWebView?.JSperformScript(script: forceDarkModeAdvanced)
-                                                                            manager.selectedWebView?.webView.evaluateJavaScript("window.toggleDarkMode(true);")
-                                                                            manager.selectedWebView?.webView.evaluateJavaScript("window.setBrightness(75);")
-                                                                        }
-                                                                    }
-                                                                    if settings.forceDarkModeTime == "dark" {
-                                                                        DispatchQueue.main.asyncAfter(deadline: .now() + settings.jsInjectionDelay) {
-                                                                            manager.selectedWebView?.JSperformScript(script: forceDarkModeAdvanced)
-                                                                            manager.selectedWebView?.webView.evaluateJavaScript("window.toggleDarkMode(true);")
-                                                                            manager.selectedWebView?.webView.evaluateJavaScript("window.setBrightness(75);")
-                                                                        }
-                                                                    }
-                                                                }
-                                                            }
                                                         } label: {
                                                             
                                                         }
@@ -432,19 +324,7 @@ struct ContentView: View {
                                             .clipped()
                                             //.padding(settings.sidebarLeft ? .trailing: .leading, settings.showBorder ? 12: 0)
                                             
-                                            if variables.delayedBrowseForMe {
-                                                BrowseForMe(searchText: variables.browseForMeSearch, searchResponse: "", closeSheet: $variables.isBrowseForMe)
-                                                    .frame(width: variables.isBrowseForMe ? 400: 0)
-                                                    .cornerRadius(10)
-                                                    .clipped()
-                                            }
-                                        }.onChange(of: variables.isBrowseForMe, {
-                                            DispatchQueue.main.asyncAfter(deadline: .now() + 1, execute: {
-                                                withAnimation(.linear, {
-                                                    variables.delayedBrowseForMe = variables.isBrowseForMe
-                                                })
-                                            })
-                                        })
+                                        }
                                         
                                         ZStack {
                                             if variables.boostEditor {
@@ -653,8 +533,7 @@ struct ContentView: View {
                                             
                                         }
                                         
-                                        if !settings.sidebarLeft && !settings.horizontalTabBar {
-                                            //PagedSidebar(fullGeo: geo)
+                                        if !settings.sidebarLeft && !settings.horizontalTabBar && !hideSidebar {
                                             TabbedPagedSidebar(isHovering: false)
                                         }
                                     }
@@ -664,9 +543,6 @@ struct ContentView: View {
                                         }
                                         if let savedEndColor = getColor(forKey: "endColorHex") {
                                             variables.endColor = savedEndColor
-                                        }
-                                        if let savedTextColor = getColor(forKey: "textColorHex") {
-                                            variables.textColor = savedTextColor
                                         }
                                         
                                         variables.spaceIcons = UserDefaults.standard.dictionary(forKey: "spaceIcons") as? [String: String]
@@ -686,116 +562,8 @@ struct ContentView: View {
 #endif
                                 }
                                 
-                                if hideSidebar {
-                                    HStack {
-                                        if !settings.sidebarLeft {
-                                            Spacer()
-                                        }
-                                        
-                                        ZStack {
-                                            Color.white.opacity(0.00001)
-                                            //Color(.systemBlue)
-                                                .opacity(0.8)
-                                                .frame(width: 45)
-                                                .offset(x: dragSidebarOffset)
-                                                .gesture(
-                                                    DragGesture()
-                                                        .onChanged { gesture in
-                                                            let horizontalTranslation = gesture.translation.width
-                                                            let currentOffset = dragSidebarOffset + horizontalTranslation
-                                                            
-                                                            if settings.sidebarLeft {
-                                                                if currentOffset >= 0 && currentOffset <= 300 {
-                                                                    dragSidebarOffset = currentOffset
-                                                                }
-                                                            } else {
-                                                                if currentOffset <= 0 && currentOffset >= -300 {
-                                                                    dragSidebarOffset = currentOffset
-                                                                }
-                                                            }
-                                                        }
-                                                        .onEnded { _ in
-                                                            if settings.sidebarLeft {
-                                                                dragSidebarOffset = (dragSidebarOffset > 150) ? 300 : 0
-                                                                
-                                                                if abs(dragSidebarOffset) >= 150 {
-                                                                    variables.tapSidebarShown = true
-                                                                    
-                                                                    dragSidebarOffset = 0
-                                                                }
-                                                            } else {
-                                                                dragSidebarOffset = (dragSidebarOffset < -150) ? -300 : 0
-                                                                
-                                                                if abs(dragSidebarOffset) >= 150 {
-                                                                    variables.tapSidebarShown = true
-                                                                    
-                                                                    dragSidebarOffset = 0
-                                                                }
-                                                            }
-                                                        }
-                                                )
-                                                .onTapGesture {
-                                                    variables.tapSidebarShown = true
-                                                }
-                                            
-#if !os(visionOS)
-                                            HStack {
-                                                VStack {
-                                                    TabbedPagedSidebar(isHovering: true)
-                                                }
-                                                .padding(15)
-                                                .frame(width: 300)
-                                                .background(content: {
-#if !os(visionOS)
-                                                    if settings.sidebarLeft {
-                                                        
-                                                        LinearGradient(colors: [variables.startColor, Color(hex: averageHexColor(hex1: variables.startHex, hex2: variables.endHex))], startPoint: .bottomLeading, endPoint: .topTrailing).ignoresSafeArea()
-                                                            .opacity(1.0)
-                                                        if selectedSpaceIndex < spaces.count {
-                                                            if !spaces[selectedSpaceIndex].startHex.isEmpty && !spaces[selectedSpaceIndex].endHex.isEmpty {
-                                                                LinearGradient(colors: [Color(hex: spaces[selectedSpaceIndex].startHex), Color(hex: averageHexColor(hex1: spaces[selectedSpaceIndex].startHex, hex2: spaces[selectedSpaceIndex].endHex))], startPoint: .bottomLeading, endPoint: .topTrailing).ignoresSafeArea()
-                                                            }
-                                                        }
-                                                    } else {
-                                                        LinearGradient(colors: [Color(hex: averageHexColor(hex1: variables.startHex, hex2: variables.endHex)), variables.endColor], startPoint: .bottomLeading, endPoint: .topTrailing).ignoresSafeArea()
-                                                            .opacity(1.0)
-                                                        if selectedSpaceIndex < spaces.count {
-                                                            if !spaces[selectedSpaceIndex].startHex.isEmpty && !spaces[selectedSpaceIndex].endHex.isEmpty {
-                                                                LinearGradient(colors: [Color(hex: averageHexColor(hex1: spaces[selectedSpaceIndex].startHex, hex2: spaces[selectedSpaceIndex].endHex)), Color(hex: spaces[selectedSpaceIndex].endHex)], startPoint: .bottomLeading, endPoint: .topTrailing).ignoresSafeArea()
-                                                            }
-                                                        }
-                                                    }
-#endif
-                                                    
-                                                    if settings.prefferedColorScheme == "dark" || (settings.prefferedColorScheme == "automatic" && colorScheme == .dark) {
-                                                        Color.black.opacity(0.5)
-                                                            .ignoresSafeArea()
-                                                    }
-                                                })
-                                                .cornerRadius(10)
-                                                .shadow(color: .black.opacity(0.25), radius: 10, x: 0, y: 0)
-                                                
-                                                Spacer()
-                                            }.padding(20)
-                                                .padding(.leading, 30)
-                                                .frame(width: variables.hoveringSidebar || variables.tapSidebarShown ? 350: 0)
-                                                .offset(x: variables.hoveringSidebar || variables.tapSidebarShown ? 0: settings.sidebarLeft ? -350: 300)
-                                                .clipped()
-                                            #endif
-                                            
-                                        }.onHover(perform: { hovering in
-                                            if hovering {
-                                                variables.hoveringSidebar = true
-                                            }
-                                            else {
-                                                variables.hoveringSidebar = false
-                                            }
-                                        })
-                                        
-                                        if settings.sidebarLeft {
-                                            Spacer()
-                                        }
-                                    }.animation(.default)
+                                if hideSidebar && !settings.horizontalTabBar {
+                                    compactSidebar(availableWidth: geo.size.width)
                                 }
                             }
                             .onOpenURL { url in
@@ -814,7 +582,7 @@ struct ContentView: View {
                                 }
                                 else {
                                     guard !spaces.isEmpty else { return }
-                                    let spaceIndex = min(selectedSpaceIndex, spaces.count - 1)
+                                    let spaceIndex = min(max(selectedSpaceIndex, 0), spaces.count - 1)
                                     let urlString = url.absoluteString
 
                                     variables.auraTab = ""
@@ -836,114 +604,19 @@ struct ContentView: View {
                                     variables.searchInSidebar = unformatURL(url: urlString)
                                 }
                             }
-                            //MARK: - Tabbar
                             if variables.tabBarShown {
                                 CommandBar(commandBarText: $variables.newTabSearch, searchSubmitted: $variables.commandBarSearchSubmitted, collapseHeightAnimation: $variables.commandBarCollapseHeightAnimation, isBrowseForMe: $variables.isBrowseForMe)
                                     .onChange(of: variables.commandBarSearchSubmitted) {
-                                        
-                                        print("Search submitted")
-                                        
-                                        variables.browseForMeSearch = variables.newTabSearch
-                                        
-                                        if !variables.newTabSearch.starts(with: "aura://") {
-                                            variables.auraTab = ""
-
-                                            guard !spaces.isEmpty else {
-                                                variables.tabBarShown = false
-                                                variables.commandBarSearchSubmitted = false
-                                                variables.newTabSearch = ""
-                                                return
-                                            }
-                                            if selectedSpaceIndex >= spaces.count {
-                                                selectedSpaceIndex = spaces.count - 1
-                                            }
-
-                                            print(variables.newTabSearch)
-                                            
-                                            var temporaryUrls = spaces[selectedSpaceIndex].tabUrls
-                                            
-                                            print("temporaryUrls:")
-                                            print(temporaryUrls)
-                                            
-                                            let formattedUrl = formatURL(from: variables.newTabSearch)
-                                            
-                                            print("formattedUrl:")
-                                            print(formattedUrl)
-                                            
-                                            temporaryUrls.append(formattedUrl)
-                                            
-                                            print("temporaryUrls - changed:")
-                                            print(temporaryUrls)
-                                            spaces[selectedSpaceIndex].tabUrls = temporaryUrls
-                                            
-                                            print("tabUrls:")
-                                            print(spaces[selectedSpaceIndex].tabUrls)
-                                            
-                                            do {
-                                                try modelContext.save()
-                                            } catch {
-                                                print(error.localizedDescription)
-                                            }
-                                            print(spaces[selectedSpaceIndex].tabUrls)
-                                            
-                                            //let tabIndex = 0
-                                            let tabIndex = spaces[selectedSpaceIndex].tabUrls.count - 1
-                                            
-                                            manager.selectedTabIndex = tabIndex
-                                            
-                                            manager.selectedTabLocation = .tabs
-                                            
-                                            manager.selectOrAddWebView(urlString: spaces[selectedSpaceIndex].tabUrls[tabIndex])
-                                            
-                                            variables.searchInSidebar = unformatURL(url: spaces[selectedSpaceIndex].tabUrls[tabIndex])
-                                        }
-                                        else {
-                                            if variables.newTabSearch.contains("dashboard") {
-                                                manager.selectedWebView = nil
-                                                
-                                                variables.auraTab = "dashboard"
-                                                variables.selectedTabLocation = ""
-                                            }
-                                            if variables.newTabSearch.contains("history") {
-                                                manager.selectedWebView = nil
-                                                
-                                                variables.auraTab = "history"
-                                                variables.selectedTabLocation = ""
-                                            }
-                                            if variables.newTabSearch.contains("settings") {
-                                                variables.showSettings = true
-                                            }
-                                        }
-                                        
-                                        manager.fetchTitlesIfNeeded(for: [formatURL(from: variables.newTabSearch)])
-                                        
-                                        let temporaryNewTabSearch = variables.newTabSearch
-                                        if settings.historyEnabled {
-                                            DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
-                                                variables.history.addItem(HistoryItem(title: manager.linksWithTitles[formatURL(from: temporaryNewTabSearch)], websiteURL: formatURL(from: temporaryNewTabSearch), date: Date.now))
-                                            }
-                                        }
-                                        
-                                        variables.tabBarShown = false
+                                        guard variables.commandBarSearchSubmitted else { return }
+                                        submitCommand(variables.newTabSearch, inNewTab: true)
                                         variables.commandBarSearchSubmitted = false
-                                        variables.newTabSearch = ""
                                     }
-                                //}
-                            }
-                            
-                            //MARK: - Command Bar
-                            else if variables.commandBarShown {
+                            } else if variables.commandBarShown {
                                 CommandBar(commandBarText: $variables.searchInSidebar, searchSubmitted: $variables.commandBarSearchSubmitted2, collapseHeightAnimation: $variables.commandBarCollapseHeightAnimation, isBrowseForMe: $variables.isBrowseForMe)
-                                    .onChange(of: variables.commandBarSearchSubmitted2) { thing in
-                                        Task {
-                                            manager.selectedWebView?.navigate(to: formatURL(from: variables.searchInSidebar))
-                                        }
-                                        
-                                        
-                                        variables.commandBarShown = false
-                                        variables.tabBarShown = false
+                                    .onChange(of: variables.commandBarSearchSubmitted2) {
+                                        guard variables.commandBarSearchSubmitted2 else { return }
+                                        submitCommand(variables.searchInSidebar, inNewTab: false)
                                         variables.commandBarSearchSubmitted2 = false
-                                        variables.newTabSearch = ""
                                     }
                             }
                         }
@@ -953,76 +626,16 @@ struct ContentView: View {
                                 launchingAnimation = false
                             })
                         }
-                        .onChange(of: selectedSpaceIndex, {
-                            if variables.initialLoadDone {
-                                
-                                var reloadAuraTabs = variables.auraTab
-                                variables.auraTab = ""
-                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.00001) {
-                                    variables.auraTab = reloadAuraTabs
-                                }
-                                
-                                if selectedSpaceIndex < spaces.count {
-                                    if !spaces[selectedSpaceIndex].startHex.isEmpty && !spaces[selectedSpaceIndex].endHex.isEmpty {
-                                        startHex = spaces[selectedSpaceIndex].startHex
-                                        endHex = spaces[selectedSpaceIndex].endHex
-
-                                        variables.startColor = Color(hex: spaces[selectedSpaceIndex].startHex)
-                                        variables.endColor = Color(hex: spaces[selectedSpaceIndex].endHex)
-                                    }
-
-                                    let space = spaces[selectedSpaceIndex]
-                                    if let lastTab = space.tabUrls.last {
-                                        manager.selectedTabLocation = .tabs
-                                        manager.selectedTabIndex = space.tabUrls.count - 1
-                                        manager.selectOrAddWebView(urlString: lastTab)
-                                        variables.searchInSidebar = unformatURL(url: lastTab)
-                                    }
-                                    else if let lastPinned = space.pinnedUrls.last {
-                                        manager.selectedTabLocation = .pinned
-                                        manager.selectedTabIndex = space.pinnedUrls.count - 1
-                                        manager.selectOrAddWebView(urlString: lastPinned)
-                                        variables.searchInSidebar = unformatURL(url: lastPinned)
-                                    }
-                                    else if let firstFavorite = space.favoritesUrls.first {
-                                        manager.selectedTabLocation = .favorites
-                                        manager.selectedTabIndex = 0
-                                        manager.selectOrAddWebView(urlString: firstFavorite)
-                                        variables.searchInSidebar = unformatURL(url: firstFavorite)
-                                    }
-                                    else {
-                                        manager.selectedWebView = nil
-                                        manager.selectedTabIndex = -1
-                                        variables.searchInSidebar = ""
-                                    }
-                                }
-                                
-                                UserDefaults.standard.setValue(selectedSpaceIndex, forKey: "savedSelectedSpaceIndex")
-                            }
-                        })
-                        .onAppear() {
-                            if UserDefaults.standard.integer(forKey: "savedSelectedSpaceIndex") > spaces.count - 1 {
-                                selectedSpaceIndex = 0
-                            }
-                            else {
-                                selectedSpaceIndex = UserDefaults.standard.integer(forKey: "savedSelectedSpaceIndex")
-                            }
-                            
-                            if selectedSpaceIndex < spaces.count {
-                                if !spaces[selectedSpaceIndex].startHex.isEmpty && !spaces[selectedSpaceIndex].endHex.isEmpty {
-                                    startHex = spaces[selectedSpaceIndex].startHex
-                                    endHex = spaces[selectedSpaceIndex].endHex
-                                    
-                                    variables.startColor = Color(hex: spaces[selectedSpaceIndex].startHex)
-                                    variables.endColor = Color(hex: spaces[selectedSpaceIndex].endHex)
-                                }
-                            }
-                            
-                            variables.initialLoadDone = true
+                        .onChange(of: selectedSpaceID) {
+                            if variables.initialLoadDone { activateSpace() }
                         }
-                        
-                        
-                        .ignoresSafeArea()
+                        .onAppear {
+                            guard !variables.initialLoadDone else { return }
+                            selectedSpaceIndex = min(max(UserDefaults.standard.integer(forKey: "savedSelectedSpaceIndex"), 0), max(spaces.count - 1, 0))
+                            variables.initialLoadDone = true
+                            activateSpace()
+                            if settings.commandBarOnLaunch { variables.tabBarShown = true }
+                        }
                     }
                 }.task {
                     if spaces.count <= 0 {
@@ -1036,18 +649,196 @@ struct ContentView: View {
                 }
             }
             
-            if launchingAnimation && settings.launchAnimation {
+            if launchingAnimation && settings.launchAnimation && !reduceMotion && !settings.reduceMotion {
                 Launch_Animation()
                     .ignoresSafeArea()
                     .allowsHitTesting(false)
             }
             
-        }.environmentObject(variables)
-            .environmentObject(manager)
-            .environmentObject(settings)
-        
+        }
+        .foregroundStyle(.primary)
+        .environmentObject(variables)
+        .environmentObject(manager)
+        .environmentObject(settings)
+        .transaction { transaction in
+            if reduceMotion || settings.reduceMotion {
+                transaction.animation = nil
+                transaction.disablesAnimations = true
+            }
+        }
+        .overlay(alignment: .trailing) {
+            if variables.isBrowseForMe {
+                // Stay mounted while a command bar is open so the answer and any
+                // in-flight request survive; remounting would resend the prompt.
+                let visible = !variables.tabBarShown && !variables.commandBarShown
+                GeometryReader { geometry in
+                    HStack(spacing: 0) {
+                        Spacer(minLength: 0)
+                        BrowseForMe(searchText: variables.browseForMeSearch, searchResponse: "", closeSheet: $variables.isBrowseForMe)
+                            .id(variables.browseForMeSearch)
+                            .frame(width: min(420, max(0, geometry.size.width - 24)))
+                    }
+                    .padding(12)
+                }
+                .opacity(visible ? 1 : 0)
+                .allowsHitTesting(visible)
+                .accessibilityHidden(!visible)
+            }
+        }
+        .sheet(isPresented: $variables.showSettings) {
+            NewSettings(presentSheet: $variables.showSettings, startHex: activeStartHex, endHex: activeEndHex)
+                .environmentObject(settings)
+                .environmentObject(variables)
+                .environmentObject(manager)
+        }
+        .onChange(of: hideSidebar) {
+            variables.tapSidebarShown = false
+            variables.hoveringSidebar = false
+        }
+        .onChange(of: settings.horizontalTabBar) {
+            variables.tapSidebarShown = false
+            variables.hoveringSidebar = false
+        }
     }
-    
+
+    private var selectedSpaceID: PersistentIdentifier? {
+        spaces.indices.contains(selectedSpaceIndex) ? spaces[selectedSpaceIndex].persistentModelID : nil
+    }
+
+    private var activeStartHex: String {
+        guard spaces.indices.contains(selectedSpaceIndex), !spaces[selectedSpaceIndex].startHex.isEmpty else { return startHex }
+        return spaces[selectedSpaceIndex].startHex
+    }
+
+    private var activeEndHex: String {
+        guard spaces.indices.contains(selectedSpaceIndex), !spaces[selectedSpaceIndex].endHex.isEmpty else { return endHex }
+        return spaces[selectedSpaceIndex].endHex
+    }
+
+    private var shellBackground: some View {
+        LinearGradient(colors: [Color(hex: activeStartHex), Color(hex: activeEndHex)], startPoint: .bottomLeading, endPoint: .topTrailing)
+            .overlay(Color(uiColor: .systemBackground).opacity(colorScheme == .dark ? 0.78 : 0.84))
+    }
+
+    private func compactSidebar(availableWidth: CGFloat) -> some View {
+        let expanded = variables.tapSidebarShown || (!settings.disableSidebarHover && variables.hoveringSidebar)
+        return HStack(spacing: 0) {
+            if !settings.sidebarLeft { Spacer(minLength: 0) }
+            ZStack(alignment: .top) {
+                Color.clear
+                    .frame(width: expanded ? min(316, max(0, availableWidth - 16)) : 44)
+                    .contentShape(Rectangle())
+                    .onTapGesture { variables.tapSidebarShown = true }
+                    .gesture(DragGesture(minimumDistance: 25).onEnded { value in
+                        let inward = settings.sidebarLeft ? value.translation.width : -value.translation.width
+                        if inward > 40 && abs(value.translation.width) > abs(value.translation.height) {
+                            variables.tapSidebarShown = true
+                        }
+                    })
+                if expanded {
+                    TabbedPagedSidebar(isHovering: true)
+                        .padding(8)
+                        .frame(width: min(316, max(0, availableWidth - 16)))
+                        .background(shellBackground, in: RoundedRectangle(cornerRadius: 16))
+                        .clipShape(RoundedRectangle(cornerRadius: 16))
+                        .shadow(color: .black.opacity(0.12), radius: 12, y: 4)
+                        .transition(.opacity)
+                } else {
+                    Button {
+                        variables.tapSidebarShown = true
+                    } label: {
+                        Image(systemName: "sidebar.left")
+                            .frame(width: 44, height: 44)
+                            .background(.regularMaterial, in: RoundedRectangle(cornerRadius: 10))
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Show sidebar")
+                }
+            }
+            .onHover { variables.hoveringSidebar = $0 }
+            if settings.sidebarLeft { Spacer(minLength: 0) }
+        }
+        .padding(8)
+        .animation(reduceMotion || settings.reduceMotion ? nil : .easeOut(duration: 0.16), value: expanded)
+    }
+
+    private func activateSpace() {
+        guard spaces.indices.contains(selectedSpaceIndex) else { return }
+        let space = spaces[selectedSpaceIndex]
+        currentSpace = space.spaceName
+        variables.auraTab = ""
+        variables.startColor = Color(hex: activeStartHex)
+        variables.endColor = Color(hex: activeEndHex)
+        let url: String?
+        if let lastTab = space.tabUrls.last {
+            manager.selectedTabLocation = .tabs
+            manager.selectedTabIndex = space.tabUrls.count - 1
+            url = lastTab
+        } else if let lastPinned = space.pinnedUrls.last {
+            manager.selectedTabLocation = .pinned
+            manager.selectedTabIndex = space.pinnedUrls.count - 1
+            url = lastPinned
+        } else if let firstFavorite = space.favoritesUrls.first {
+            manager.selectedTabLocation = .favorites
+            manager.selectedTabIndex = 0
+            url = firstFavorite
+        } else {
+            manager.selectedTabIndex = -1
+            url = nil
+        }
+        if let url {
+            manager.selectOrAddWebView(urlString: url)
+            variables.searchInSidebar = unformatURL(url: url)
+        } else {
+            manager.selectedWebView = nil
+            variables.searchInSidebar = ""
+        }
+        UserDefaults.standard.set(selectedSpaceIndex, forKey: "savedSelectedSpaceIndex")
+    }
+
+    private func submitCommand(_ input: String, inNewTab: Bool) {
+        let query = input.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !query.isEmpty else { return }
+        defer {
+            variables.tabBarShown = false
+            variables.commandBarShown = false
+            variables.tapSidebarShown = false
+            variables.newTabSearch = ""
+        }
+        if variables.isBrowseForMe {
+            variables.browseForMeSearch = query
+            return
+        }
+        if let url = URL(string: query), url.scheme == "aura" {
+            switch url.host {
+            case "settings": variables.showSettings = true
+            case "history", "dashboard":
+                manager.selectedWebView = nil
+                variables.auraTab = url.host ?? "dashboard"
+            default: break
+            }
+            return
+        }
+        guard !spaces.isEmpty else { return }
+        let spaceIndex = min(max(selectedSpaceIndex, 0), spaces.count - 1)
+        let url = formatURL(from: query)
+        variables.auraTab = ""
+        if inNewTab || manager.selectedWebView == nil {
+            spaces[spaceIndex].tabUrls.append(url)
+            manager.selectedTabLocation = .tabs
+            manager.selectedTabIndex = spaces[spaceIndex].tabUrls.count - 1
+            manager.selectOrAddWebView(urlString: url)
+            saveSpaceData()
+        } else {
+            manager.selectedWebView?.navigate(to: url)
+        }
+        variables.searchInSidebar = unformatURL(url: url)
+        manager.fetchTitlesIfNeeded(for: [url])
+        if settings.historyEnabled {
+            variables.history.addItem(HistoryItem(title: manager.linksWithTitles[url], websiteURL: url, date: .now))
+        }
+    }
+
     func saveSpaceData() {
         Task {
             do {
@@ -1071,30 +862,6 @@ struct ContentView: View {
         }
         else {
             inspectCodeString = removeHeadContent(from: thing)
-        }
-    }
-    
-    private func loadingIndicators(for isLoading: Bool?) -> some View {
-        Group {
-            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .trim(from: 0.25 + variables.offset, to: 0.5 + variables.offset)
-                .stroke(style: StrokeStyle(lineWidth: 10, lineCap: .round))
-                .foregroundColor(selectedSpaceIndex < spaces.count ? Color(hex: spaces[selectedSpaceIndex].startHex) : .blue)
-                .opacity(isLoading ?? false ? 1.0 : 0.0)
-                .animation(.linear, value: isLoading ?? false)
-                .blur(radius: 5)
-            
-            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .trim(from: 0.25 + variables.offset, to: 0.5 + variables.offset)
-                .stroke(style: StrokeStyle(lineWidth: 10, lineCap: .round))
-                .rotation(Angle(degrees: 180))
-                .foregroundColor(selectedSpaceIndex < spaces.count ? Color(hex: spaces[selectedSpaceIndex].startHex) : .blue)
-                .opacity(isLoading ?? false ? 1.0 : 0.0)
-                .animation(.linear, value: isLoading ?? false)
-                .blur(radius: 5)
-                .onReceive(rotationTimer) { _ in
-                    handleRotation()
-                }
         }
     }
     
@@ -1143,19 +910,6 @@ struct ContentView: View {
         withAnimation(.linear(duration: 0.25)) {
             variables.navigationOffset = 0
             variables.navigationArrowColor = false
-        }
-    }
-    
-    private func handleRotation() {
-        if variables.offset == 0.5 {
-            variables.offset = 0.0
-            withAnimation(.linear(duration: 1.5)) {
-                variables.offset = 0.5
-            }
-        } else {
-            withAnimation(.linear(duration: 1.5)) {
-                variables.offset = 0.5
-            }
         }
     }
     

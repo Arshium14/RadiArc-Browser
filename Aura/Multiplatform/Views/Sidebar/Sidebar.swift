@@ -16,7 +16,7 @@ struct SidebarSpaceParameter: View {
     @Environment(\.modelContext) var modelContext
     @Query(sort: \SpaceStorage.spaceIndex) var spaces: [SpaceStorage]
     
-    @State var currentSelectedSpaceIndex: Int
+    let currentSelectedSpaceIndex: Int
     
     @EnvironmentObject var variables: ObservableVariables
     @EnvironmentObject var manager: WebsiteManager
@@ -26,57 +26,12 @@ struct SidebarSpaceParameter: View {
     
     var geo: GeometryProxy
     
-    @State var temporaryRenamingString = ""
-    @State var isRenaming = false
-    
-    // Storage and Website Loading
-    @AppStorage("currentSpace") var currentSpace = "Untitled"
-    
-    @State private var spaceIcons: [String: String]? = [:]
-    
-    @State private var reloadTitles = false
-    
-    let timer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
-    
-    // Settings and Sheets
-    @State private var hoverTab = WKWebView()
-    
-    @State private var changeColorSheet = false
-    
-    @State private var startHex = "ffffff"
-    @State private var endHex = "000000"
-    
-    @State private var presentIcons = false
-    
-    // Hover Effects
     @State private var hoverSidebarSearchField = false
-    
-    @State private var hoverCloseTab = WKWebView()
-    
-    @State private var spaceIconHover = false
-    
-    @State private var settingsButtonHover = false
     @State private var hoverNewTabSection = false
-    
-    @State var temporaryRenameSpace = ""
-    
-    @AppStorage("hoverEffectsAbsorbCursor") var hoverEffectsAbsorbCursor = true
     @AppStorage("favoritesStyle") var favoritesStyle = false
     @AppStorage("faviconLoadingStyle") var faviconLoadingStyle = false
-    
     @AppStorage("faviconShape") var faviconShape = "circle"
-    
     @AppStorage("selectedSpaceIndex") var selectedSpaceIndex = 0
-    
-    @State var hoverPaintbrush = false
-    
-    @FocusState var renameIsFocused: Bool
-    
-    // Selection States
-    @State private var changingIcon = ""
-    @State private var draggedTab: WKWebView?
-    
-    @State private var textRect = CGRect()
     
     @State private var draggedItem: String?
     @State private var draggedItemIndex: Int?
@@ -89,7 +44,26 @@ struct SidebarSpaceParameter: View {
     
     @State var activityController: UIActivityViewController!
     
+    @State private var saveError: String?
+
     var body: some View {
+        Group {
+            if spaces.indices.contains(currentSelectedSpaceIndex) {
+                sidebarContent
+            }
+        }
+        .font(.body)
+        .foregroundStyle(.primary)
+        .alert("Couldn’t Save Tabs", isPresented: Binding(
+            get: { saveError != nil }, set: { if !$0 { saveError = nil } }
+        )) {
+            Button("OK", role: .cancel) { saveError = nil }
+        } message: {
+            Text(saveError ?? "Please try again.")
+        }
+    }
+
+    private var sidebarContent: some View {
             VStack {
                 // Sidebar Searchbar
                 Button {
@@ -105,8 +79,8 @@ struct SidebarSpaceParameter: View {
                     ZStack {
 #if !os(visionOS)
                         RoundedRectangle(cornerRadius: 20)
-                            .fill(Color(.white).opacity(hoverSidebarSearchField ? 0.3 : 0.15))
-                            .stroke(Color.white.opacity(hoverSidebarSearchField ? 0.8: 0.0), lineWidth: 2)
+                            .fill(Color.primary.opacity(hoverSidebarSearchField ? 0.10 : 0.06))
+                            .stroke(Color.primary.opacity(hoverSidebarSearchField ? 0.18 : 0), lineWidth: 1)
                         #endif
                         
                         HStack(spacing: 0) {
@@ -116,8 +90,8 @@ struct SidebarSpaceParameter: View {
                                         Label("Secure", systemImage: "lock.fill")
                                     }, label: {
                                         Image(systemName: "lock.fill")
-                                            .foregroundStyle(Color.white)
-                                            .font(.system(.body, design: .rounded, weight: .semibold))
+                                            .foregroundStyle(.primary)
+                                            .font(.body.weight(.medium))
                                             .hoverEffect(.highlight)
                                             .padding(.horizontal, 5)
                                             .padding(.leading, 5)
@@ -129,7 +103,7 @@ struct SidebarSpaceParameter: View {
                                     }, label: {
                                         Image(systemName: "lock.open.fill")
                                             .foregroundStyle(Color.red)
-                                            .font(.system(.body, design: .rounded, weight: .semibold))
+                                            .font(.body.weight(.medium))
                                             .hoverEffect(.highlight)
                                             .padding(.horizontal, 5)
                                             .padding(.leading, 5)
@@ -140,14 +114,14 @@ struct SidebarSpaceParameter: View {
                             if unformatURL(url: variables.searchInSidebar).isEmpty {
                                 Text("Search or Enter URL")
                                     .padding(.leading, 5)
-                                    .foregroundColor(Color.foregroundColor(forHex: UserDefaults.standard.string(forKey: "startColorHex") ?? "ffffff"))
+                                    .foregroundStyle(.primary)
                                     .opacity(0.8)
                                     .lineLimit(1)
                             }
                             else {
                                 Text(unformatURL(url: variables.searchInSidebar))
                                     .padding(.leading, 5)
-                                    .foregroundColor(Color.foregroundColor(forHex: UserDefaults.standard.string(forKey: "startColorHex") ?? "ffffff"))
+                                    .foregroundStyle(.primary)
                                     .lineLimit(1)
                             }
                             
@@ -170,8 +144,8 @@ struct SidebarSpaceParameter: View {
                                         UIApplication.shared.windows.first?.rootViewController!.present(activityController, animated: true, completion: nil)
                                     }) {
                                         Image(systemName: "square.and.arrow.up")
-                                            .foregroundStyle(Color.white)
-                                            .font(.system(.body, design: .rounded, weight: .bold))
+                                            .foregroundStyle(.primary)
+                                            .font(.body.weight(.medium))
                                             .hoverEffect(.highlight)
                                             //.padding(.horizontal, 5)
                                             //.padding(.trailing, 5)
@@ -291,8 +265,8 @@ struct SidebarSpaceParameter: View {
                                     
                                 }, label: {
                                     Image(systemName: "switch.2")
-                                        .foregroundStyle(Color.white)
-                                        .font(.system(.body, design: .rounded, weight: .bold))
+                                        .foregroundStyle(.primary)
+                                        .font(.body.weight(.medium))
                                         .hoverEffect(.highlight)
                                         .padding(.horizontal, 5)
                                         .padding(.trailing, 5)
@@ -316,16 +290,14 @@ struct SidebarSpaceParameter: View {
                 // Tabs
                 ScrollView {
                     // Favorite Tabs
-                    IntVGrid(itemCount: spaces[currentSelectedSpaceIndex].favoritesUrls.count, numberOfColumns: 4) { tabIndex in
+                    LazyVGrid(columns: [GridItem(.adaptive(minimum: favoritesStyle ? 100 : 52), spacing: 8)], spacing: 8) {
+                        ForEach(spaces[currentSelectedSpaceIndex].favoritesUrls.indices, id: \.self) { tabIndex in
                         VStack {
                             ZStack {
-                                if reloadTitles {
-                                    Color.white.opacity(0.0)
-                                }
                                 
                                 RoundedRectangle(cornerRadius: settings.favoriteTabCornerRadius)
-                                    .stroke(Color.white.opacity(0.5), lineWidth: settings.favoriteTabBorderWidth)
-                                    .fill(Color(.white).opacity((tabIndex == manager.selectedTabIndex && manager.selectedTabLocation == .favorites) ? 0.5 : (manager.hoverTabIndex == tabIndex && manager.hoverTabLocation == .favorites) ? 0.2: 0.0001))
+                                    .stroke(Color.primary.opacity(0.15), lineWidth: settings.favoriteTabBorderWidth)
+                                    .fill(Color.primary.opacity((tabIndex == manager.selectedTabIndex && manager.selectedTabLocation == .favorites) ? 0.12 : (manager.hoverTabIndex == tabIndex && manager.hoverTabLocation == .favorites) ? 0.08 : 0.04))
                                     .frame(height: 75)
                                 
                                 if !favoritesStyle {
@@ -368,12 +340,9 @@ struct SidebarSpaceParameter: View {
                                     if spaces[currentSelectedSpaceIndex].favoritesUrls.count > tabIndex {
                                         Text(manager.linksWithTitles[spaces[currentSelectedSpaceIndex].favoritesUrls[tabIndex]] ?? spaces[currentSelectedSpaceIndex].favoritesUrls[tabIndex])
                                             .lineLimit(1)
-                                            .foregroundColor(Color.foregroundColor(forHex: UserDefaults.standard.string(forKey: "startColorHex") ?? "ffffff"))
+                                            .foregroundStyle(.primary)
                                             .padding(.leading, 5)
-                                            .onReceive(timer) { _ in
-                                                reloadTitles.toggle()
                                             }
-                                    }
                                 }
                                 
                             }
@@ -436,11 +405,6 @@ struct SidebarSpaceParameter: View {
                                     }
                                 }
                             }
-                            .onAppear() {
-                                DispatchQueue.main.asyncAfter(deadline: .now() + 5) {
-                                    hoverTab = WKWebView()
-                                }
-                            }
                             .onHover(perform: { hovering in
                                 if hovering {
                                     manager.hoverTabIndex = tabIndex
@@ -489,7 +453,8 @@ struct SidebarSpaceParameter: View {
                             }
                         ))
                         
-                    }.padding(10)
+                        }
+                    }.padding(.vertical, 8)
                     
                     ForEach(spaces[currentSelectedSpaceIndex].pinnedUrls.indices, id: \.self) { tabIndex in
                         VStack {
@@ -497,10 +462,10 @@ struct SidebarSpaceParameter: View {
                                 if currentHoverIndex == tabIndex && manager.dragTabLocation == .pinned {
                                     HStack(spacing: 0) {
                                         Circle()
-                                            .stroke(Color(hex: "181F5B"), lineWidth: 2)
+                                            .stroke(Color.primary, lineWidth: 2)
                                             .frame(height: 8)
                                         
-                                        Color(hex: "181F5B")
+                                        Color.primary
                                             .frame(height: 2)
                                             .cornerRadius(10)
                                             .offset(x: -2)
@@ -508,12 +473,9 @@ struct SidebarSpaceParameter: View {
                                 }
                             }
                             ZStack {
-                                if reloadTitles {
-                                    Color.white.opacity(0.0)
-                                }
                                 
                                 RoundedRectangle(cornerRadius: 20)
-                                    .foregroundStyle(Color(.white).opacity((tabIndex == manager.selectedTabIndex && manager.selectedTabLocation == .pinned) ? 0.5 : (manager.hoverTabIndex == tabIndex && manager.hoverTabLocation == .pinned) ? 0.2: 0.0001))
+                                    .foregroundStyle(Color.primary.opacity((tabIndex == manager.selectedTabIndex && manager.selectedTabLocation == .pinned) ? 0.10 : (manager.hoverTabIndex == tabIndex && manager.hoverTabLocation == .pinned) ? 0.2: 0.0001))
                                     .frame(height: 50)
                                 
                                 HStack {
@@ -555,11 +517,8 @@ struct SidebarSpaceParameter: View {
                                     
                                     Text(manager.linksWithTitles[spaces[currentSelectedSpaceIndex].pinnedUrls[tabIndex]] ?? spaces[currentSelectedSpaceIndex].pinnedUrls[tabIndex])
                                         .lineLimit(1)
-                                        .foregroundColor(Color.foregroundColor(forHex: UserDefaults.standard.string(forKey: "startColorHex") ?? "ffffff"))
+                                        .foregroundStyle(.primary)
                                         .padding(.leading, 5)
-                                        .onReceive(timer) { _ in
-                                            reloadTitles.toggle()
-                                        }
                                     
                                     Spacer()
                                     
@@ -576,7 +535,7 @@ struct SidebarSpaceParameter: View {
                                                     .resizable()
                                                     .scaledToFit()
                                                     .frame(width: 15, height: 15)
-                                                    .foregroundStyle(Color.white)
+                                                    .foregroundStyle(.primary)
                                                     .opacity(manager.hoverCloseTabIndex == tabIndex ? 1.0: 0.8)
                                                 
                                             }.frame(width: 35, height: 35)
@@ -592,7 +551,6 @@ struct SidebarSpaceParameter: View {
 #if !os(visionOS) && !os(macOS)
                                                 .cornerRadius(7)
                                                 .padding(.trailing, 10)
-                                                .hoverEffect(.lift)
 #endif
                                             
                                         }
@@ -658,11 +616,6 @@ struct SidebarSpaceParameter: View {
                                     }
                                 }
                             }
-                            .onAppear() {
-                                DispatchQueue.main.asyncAfter(deadline: .now() + 5) {
-                                    hoverTab = WKWebView()
-                                }
-                            }
                             .onHover(perform: { hovering in
                                 if hovering {
                                     manager.hoverTabIndex = tabIndex
@@ -698,10 +651,10 @@ struct SidebarSpaceParameter: View {
                                 if currentHoverIndex == tabIndex && manager.dragTabLocation == .pinned {
                                     HStack(spacing: 0) {
                                         Circle()
-                                            .stroke(Color(hex: "181F5B"), lineWidth: 2)
+                                            .stroke(Color.primary, lineWidth: 2)
                                             .frame(height: 8)
                                         
-                                        Color(hex: "181F5B")
+                                        Color.primary
                                             .frame(height: 2)
                                             .cornerRadius(10)
                                             .offset(x: -2)
@@ -729,231 +682,20 @@ struct SidebarSpaceParameter: View {
                         manager.fetchTitles(for: spaces[currentSelectedSpaceIndex].pinnedUrls)
                     }
                     
-                    ZStack {
-                        HStack {
-                            Spacer()
-                                .frame(width: 50, height: 40)
-                            
-                            ZStack {
-                                TextField("", text: $temporaryRenameSpace)
-                                    .textFieldStyle(.plain)
-                                    .foregroundStyle(variables.textColor)
-                                    .opacity(renameIsFocused ? 0.75: 0)
-                                    .tint(Color.white)
-                                    .font(.system(.caption, design: .rounded, weight: .medium))
-                                    .focused($renameIsFocused)
-                                    .onSubmit {
-                                        spaces[selectedSpaceIndex].spaceName = temporaryRenameSpace
-                                        
-                                        Task {
-                                            do {
-                                                try modelContext.save()
-                                            }
-                                            catch {
-                                                print(error.localizedDescription)
-                                            }
-                                        }
-                                        
-                                        temporaryRenameSpace = ""
-                                    }
-                                
-                            }
-                            
-                        }
-                        
-                        HStack {
-                            Button {
-                                presentIcons.toggle()
-                            } label: {
-                                ZStack {
-                                    HoverButtonDisabledVision(hoverInteraction: $spaceIconHover)
-                                    
-                                    Image(systemName: spaces[currentSelectedSpaceIndex].spaceIcon)
-                                        .resizable()
-                                        .scaledToFit()
-                                        .frame(width: 20, height: 20)
-                                        .foregroundStyle(variables.textColor)
-                                        .opacity(spaceIconHover ? 1.0: 0.5)
-                                    
-                                }.frame(width: 40, height: 40).cornerRadius(7)
-#if !os(visionOS) && !os(macOS)
-                                    .hoverEffect(.lift)
-                                    .hoverEffectDisabled(!hoverEffectsAbsorbCursor)
-                                #endif
-                                    .onHover(perform: { hovering in
-                                        if hovering {
-                                            spaceIconHover = true
-                                        }
-                                        else {
-                                            spaceIconHover = false
-                                        }
-                                    })
-                            }.buttonStyle(.plain)
-                            
-                            Text(!renameIsFocused ? spaces[currentSelectedSpaceIndex].spaceName: temporaryRenameSpace)
-                                .foregroundStyle(variables.textColor)
-                                .opacity(!renameIsFocused ? 1.0: 0)
-                                .font(.system(.caption, design: .rounded, weight: .medium))
-                                .onTapGesture {
-                                    temporaryRenameSpace = spaces[currentSelectedSpaceIndex].spaceName
-                                    temporaryRenameSpace = String(temporaryRenameSpace)
-                                    renameIsFocused = true
-                                }
-#if !os(visionOS) && !os(macOS)
-                                .hoverEffect(.lift)
-                            #endif
-                            
-                            if renameIsFocused {
-                                Button(action: {
-                                    renameIsFocused = false
-                                }, label: {
-                                    Image(systemName: "checkmark.circle.fill")
-                                        .frame(height: 20)
-                                        .foregroundStyle(Color.white)
-                                        .opacity(0.5)
-                                })
-#if !os(visionOS) && !os(macOS)
-                                .hoverEffect(.lift)
-                                    .hoverEffectDisabled(!hoverEffectsAbsorbCursor)
-                                #endif
-                            }
-                            
-                            variables.textColor
-                                .opacity(0.5)
-                                .frame(height: 1)
-                                .cornerRadius(10)
-                            
-                            
-                            Menu {
-                                VStack {
-                                    Button(action: {
-                                        changeColorSheet.toggle()
-                                    }, label: {
-                                        Label("Edit Theme", systemImage: "paintpalette")
-                                    })
-                                    
-                                    Button(action: {
-                                        temporaryRenameSpace = spaces[currentSelectedSpaceIndex].spaceName
-                                        temporaryRenameSpace = String(temporaryRenameSpace)
-                                        renameIsFocused = true
-                                    }, label: {
-                                        Label("Rename Space", systemImage: "rectangle.and.pencil.and.ellipsis.rtl")
-                                    })
-                                    
-                                    Button(action: {
-                                        presentIcons.toggle()
-                                    }, label: {
-                                        Label("Change Space Icon", systemImage: spaces[currentSelectedSpaceIndex].spaceIcon)
-                                    })
-                                }
-                            } label: {
-                                ZStack {
-                                    HoverButtonDisabledVision(hoverInteraction: $hoverPaintbrush)
-                                    
-                                    Image(systemName: "ellipsis")
-                                        .resizable()
-                                        .scaledToFit()
-                                        .frame(width: 15, height: 25)
-                                        .foregroundStyle(variables.textColor)
-                                        .opacity(hoverPaintbrush ? 1.0: 0.5)
-                                    
-                                }.frame(width: 40, height: 40).cornerRadius(7)
-                            }
-#if !os(visionOS) && !os(macOS)
-                            .hoverEffect(.lift)
-                                .hoverEffectDisabled(!hoverEffectsAbsorbCursor)
-                            #endif
-                                .onHover(perform: { hovering in
-                                    if hovering {
-                                        hoverPaintbrush = true
-                                    }
-                                    else {
-                                        hoverPaintbrush = false
-                                    }
-                                })
-                            
-                            
-                        }
-                    }
-                    .padding(.vertical, 10)
-                    .popover(isPresented: $changeColorSheet, attachmentAnchor: .point(.trailing), arrowEdge: .leading, content: {
-                        VStack(spacing: 20) {
-                            ZStack {
-                                LinearGradient(gradient: Gradient(colors: [variables.startColor, variables.endColor]), startPoint: .bottomLeading, endPoint: .topTrailing)
-                                    .frame(width: 250, height: 200)
-                                    .ignoresSafeArea()
-                                    .offset(x: -10)
-                            }.frame(width: 200, height: 200)
-                            
-                            VStack {
-                                ColorPicker("Start Color", selection: $variables.startColor)
-                                    .onChange(of: variables.startColor) { oldValue, newValue in
-                                        let uiColor1 = UIColor(newValue)
-                                        let hexString1 = uiColor1.toHex()
-                                        
-                                        spaces[selectedSpaceIndex].startHex = hexString1 ?? "858585"
-                                    }
-                                
-                                ColorPicker("End Color", selection: $variables.endColor)
-                                    .onChange(of: variables.endColor) { oldValue, newValue in
-                                        let uiColor2 = UIColor(newValue)
-                                        let hexString2 = uiColor2.toHex()
-                                        
-                                        spaces[selectedSpaceIndex].endHex = hexString2 ?? "ADADAD"
-                                    }
-                                
-                                ColorPicker("Text Color", selection: $variables.textColor)
-                                    .onChange(of: variables.textColor) { oldValue, newValue in
-                                        saveColor(color: newValue, key: "textColorHex")
-                                    }
-                            }
-                            .padding()
-                            
-                            Spacer()
-                        }
-                        
-                    })
-                    .popover(isPresented: $presentIcons, attachmentAnchor: .point(.trailing), arrowEdge: .leading) {
-                        ZStack {
-#if !os(visionOS)
-                            LinearGradient(colors: [variables.startColor, variables.endColor], startPoint: .bottomLeading, endPoint: .topTrailing).ignoresSafeArea()
-                                .opacity(1.0)
-                            
-                            if currentSelectedSpaceIndex < spaces.count {
-                                if !spaces[currentSelectedSpaceIndex].startHex.isEmpty && !spaces[currentSelectedSpaceIndex].endHex.isEmpty {
-                                    LinearGradient(colors: [Color(hex: spaces[currentSelectedSpaceIndex].startHex), Color(hex: spaces[currentSelectedSpaceIndex].endHex)], startPoint: .bottomLeading, endPoint: .topTrailing).ignoresSafeArea()
-                                }
-                            }
-                            #endif
-                            
-                            //IconsPicker(currentIcon: $changingIcon)
-                            IconsPicker(currentIcon: $changingIcon, selectedSpaceIndex: $currentSelectedSpaceIndex)
-                                .onChange(of: changingIcon) {
-                                    spaces[selectedSpaceIndex].spaceIcon = changingIcon
-                                    do {
-                                        try modelContext.save()
-                                    }
-                                    catch {
-                                        
-                                    }
-                                }
-                                .onDisappear() {
-                                    changingIcon = ""
-                                }
-                        }
-                    }
+                    SpaceCustomizationButton(space: spaces[currentSelectedSpaceIndex])
+                        .padding(.vertical, 4)
                     
                     Button {
                         variables.tabBarShown.toggle()
                     } label: {
                         ZStack {
                             RoundedRectangle(cornerRadius: 20)
-                                .foregroundStyle(Color(.white).opacity(hoverNewTabSection ? 0.5: 0.0))
+                                .foregroundStyle(Color.primary.opacity(hoverNewTabSection ? 0.08 : 0))
                                 .frame(height: 50)
                             HStack {
                                 Label("New Tab", systemImage: "plus")
-                                    .foregroundStyle(variables.textColor)
-                                    .font(.system(.headline, design: .rounded, weight: .bold))
+                                    .foregroundStyle(.primary)
+                                    .font(.body.weight(.medium))
                                     .padding(.leading, 10)
                                 
                                 Spacer()
@@ -968,11 +710,6 @@ struct SidebarSpaceParameter: View {
                             }
                         })
                     }.buttonStyle(.plain)
-                    .onAppear() {
-                        if settings.commandBarOnLaunch {
-                            variables.tabBarShown = true
-                        }
-                    }
                     .onChange(of: manager.selectedWebView?.webView.url?.absoluteString ?? "") {
                         DispatchQueue.main.asyncAfter(deadline: .now() + 0.2, execute: {
                             let newUrl = manager.selectedWebView?.webView.url?.absoluteString ?? ""
@@ -1017,10 +754,10 @@ struct SidebarSpaceParameter: View {
                                 if currentHoverIndex == tabIndex && manager.dragTabLocation == .tabs {
                                     HStack(spacing: 0) {
                                         Circle()
-                                            .stroke(Color(hex: "181F5B"), lineWidth: 2)
+                                            .stroke(Color.primary, lineWidth: 2)
                                             .frame(height: 8)
                                         
-                                        Color(hex: "181F5B")
+                                        Color.primary
                                             .frame(height: 2)
                                             .cornerRadius(10)
                                             .offset(x: -2)
@@ -1028,12 +765,9 @@ struct SidebarSpaceParameter: View {
                                 }
                             }
                             ZStack {
-                                if reloadTitles {
-                                    Color.white.opacity(0.0)
-                                }
                                 
                                 RoundedRectangle(cornerRadius: 20)
-                                    .foregroundStyle(Color(.white).opacity((tabIndex == manager.selectedTabIndex && manager.selectedTabLocation == .tabs) ? 0.5 : (manager.hoverTabIndex == tabIndex && manager.hoverTabLocation == .tabs) ? 0.2: 0.0001))
+                                    .foregroundStyle(Color.primary.opacity((tabIndex == manager.selectedTabIndex && manager.selectedTabLocation == .tabs) ? 0.10 : (manager.hoverTabIndex == tabIndex && manager.hoverTabLocation == .tabs) ? 0.2: 0.0001))
                                     .frame(height: 50)
                                 
                                 HStack {
@@ -1075,11 +809,8 @@ struct SidebarSpaceParameter: View {
                                     
                                     Text(manager.linksWithTitles[spaces[currentSelectedSpaceIndex].tabUrls[tabIndex]] ?? spaces[currentSelectedSpaceIndex].tabUrls[tabIndex])
                                         .lineLimit(1)
-                                        .foregroundColor(Color.foregroundColor(forHex: UserDefaults.standard.string(forKey: "startColorHex") ?? "ffffff"))
+                                        .foregroundStyle(.primary)
                                         .padding(.leading, 5)
-                                        .onReceive(timer) { _ in
-                                            reloadTitles.toggle()
-                                        }
                                     
                                     Spacer()
                                     
@@ -1096,7 +827,7 @@ struct SidebarSpaceParameter: View {
                                                     .resizable()
                                                     .scaledToFit()
                                                     .frame(width: 15, height: 15)
-                                                    .foregroundStyle(Color.white)
+                                                    .foregroundStyle(.primary)
                                                     .opacity(manager.hoverCloseTabIndex == tabIndex ? 1.0: 0.8)
                                                 
                                             }.frame(width: 35, height: 35)
@@ -1112,7 +843,6 @@ struct SidebarSpaceParameter: View {
 #if !os(visionOS) && !os(macOS)
                                                 .cornerRadius(7)
                                                 .padding(.trailing, 10)
-                                                .hoverEffect(.lift)
 #endif
                                             
                                         }
@@ -1177,11 +907,6 @@ struct SidebarSpaceParameter: View {
                                     }
                                 }
                             }
-                            .onAppear() {
-                                DispatchQueue.main.asyncAfter(deadline: .now() + 5) {
-                                    hoverTab = WKWebView()
-                                }
-                            }
                             .onHover(perform: { hovering in
                                 if hovering {
                                     manager.hoverTabIndex = tabIndex
@@ -1217,10 +942,10 @@ struct SidebarSpaceParameter: View {
                                 if currentHoverIndex == tabIndex && manager.dragTabLocation == .tabs {
                                     HStack(spacing: 0) {
                                         Circle()
-                                            .stroke(Color(hex: "181F5B"), lineWidth: 2)
+                                            .stroke(Color.primary, lineWidth: 2)
                                             .frame(height: 8)
                                         
-                                        Color(hex: "181F5B")
+                                        Color.primary
                                             .frame(height: 2)
                                             .cornerRadius(10)
                                             .offset(x: -2)

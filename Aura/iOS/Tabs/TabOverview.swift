@@ -83,14 +83,6 @@ struct TabOverview: View {
                                 Image(systemName: "gearshape")
                                 
                             }).buttonStyle(ToolbarButtonStyle())
-                                .sheet(isPresented: $variables.showSettings, content: {
-                                    if selectedSpaceIndex < spaces.count && (!spaces[selectedSpaceIndex].startHex.isEmpty && !spaces[selectedSpaceIndex].endHex.isEmpty) {
-                                        NewSettings(presentSheet: $variables.showSettings, startHex: spaces[selectedSpaceIndex].startHex, endHex: spaces[selectedSpaceIndex].endHex)
-                                    }
-                                    else {
-                                        NewSettings(presentSheet: $variables.showSettings, startHex: variables.startHex, endHex: variables.endHex)
-                                    }
-                                })
                             
                             Spacer()
                         }.padding(.top, 50)

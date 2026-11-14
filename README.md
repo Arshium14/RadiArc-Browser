@@ -1,9 +1,9 @@
-# Aura Browser — iPad Fork
+# Sol Browser
 
-A fork of [Aura Browser](https://github.com/doorhinge-apps/Aura-Browser) tuned into a
-complete, working Arc-style browser for iPad. Aura is a native **SwiftUI + WebKit**
-browser — essentially [Arc](https://arc.net) rebuilt for iPadOS — with Spaces,
-pinned/favorite tabs, a command bar, split view, boosts, and a dashboard.
+An independent iPad browser forked from [Aura Browser](https://github.com/doorhinge-apps/Aura-Browser),
+with an Arc/Zen-inspired interface built in **SwiftUI + WebKit**. It includes spaces,
+pinned/favorite tabs, a command bar, boosts, and a dashboard. It does not provide
+complete Arc or Zen feature parity.
 
 This fork keeps the original architecture and fixes the crashes, dead-ends, and
 tab-state bugs that stopped the upstream build from being usable day-to-day, and
@@ -74,13 +74,13 @@ headers intact, as MPL-2.0 requires.
 **Build & delivery**
 - Added [`.github/workflows/build-ipa.yml`](.github/workflows/build-ipa.yml): a macOS
   CI job that resolves Swift packages, compile-checks for the iOS Simulator, builds an
-  unsigned device app, and uploads `Aura-unsigned.ipa` as an artifact.
+  unsigned device app, and uploads `Sol-Browser-unsigned.ipa` as an artifact.
 
 ---
 
 ## Requirements
 
-- **To build:** a Mac with **Xcode 15 or newer** (iOS 17 SDK), **or** a GitHub account
+- **To build:** a Mac with **Xcode 16 or newer** (iOS 18 SDK), **or** a GitHub account
   to run the included CI workflow (no Mac needed).
 - **To run:** an iPad on **iPadOS 17 or later**.
 - **To sideload:** a free Apple ID and one of SideStore, AltStore, or Sideloadly.
@@ -113,8 +113,8 @@ runner and produces an unsigned IPA.
    **Actions ▸ Build iPad IPA ▸ Run workflow**.
 3. Wait for the run to finish (the first run resolves and compiles all packages, so it
    can take 10–25 minutes).
-4. Open the completed run and download the **`Aura-unsigned-ipa`** artifact. It
-   contains `Aura-unsigned.ipa`.
+4. Open the completed run and download the **`Sol-Browser-unsigned-ipa`** artifact. It
+   contains `Sol-Browser-unsigned.ipa`.
 
 The IPA is **unsigned** — you re-sign it with your own Apple ID using a sideloading
 tool below. The simulator compile step is the build gate: if the Swift code doesn't
@@ -160,7 +160,7 @@ Pick **one** of the tools below.
    Apple ID when prompted (it's sent only to Apple's signing servers).
 4. On the iPad: **Settings ▸ General ▸ VPN & Device Management** ▸ trust your Apple ID
    developer profile.
-5. Open **AltStore** ▸ **My Apps** ▸ tap **+** ▸ select `Aura-unsigned.ipa`. AltStore
+5. Open **AltStore** ▸ **My Apps** ▸ tap **+** ▸ select `Sol-Browser-unsigned.ipa`. AltStore
    signs and installs it.
 6. Keep AltServer running on your computer (or on the same Wi-Fi) so AltStore can
    auto-refresh the app before the 7-day expiry.
@@ -169,7 +169,7 @@ Pick **one** of the tools below.
 
 1. Download **Sideloadly**: <https://sideloadly.io> and install it.
 2. Connect your iPad by USB and trust the computer.
-3. Drag `Aura-unsigned.ipa` into Sideloadly, enter your Apple ID, and click **Start**.
+3. Drag `Sol-Browser-unsigned.ipa` into Sideloadly, enter your Apple ID, and click **Start**.
 4. When done, on the iPad: **Settings ▸ General ▸ VPN & Device Management** ▸ trust
    the developer profile, then launch Aura.
 5. Re-run Sideloadly every 7 days to refresh (free accounts).
@@ -179,7 +179,7 @@ Pick **one** of the tools below.
 1. Follow the SideStore setup guide: <https://sidestore.io> — it uses a one-time
    computer pairing (via AltServer/iload) to install SideStore + a WireGuard-based
    local VPN.
-2. Once set up, open **SideStore** ▸ **+** ▸ select `Aura-unsigned.ipa` to install.
+2. Once set up, open **SideStore** ▸ **+** ▸ select `Sol-Browser-unsigned.ipa` to install.
 3. SideStore can refresh apps **on-device over Wi-Fi** without your computer, which
    makes the 7-day limit much easier to live with.
 

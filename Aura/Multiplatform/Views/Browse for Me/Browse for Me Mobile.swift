@@ -73,13 +73,14 @@ struct BrowseForMeMobile: View {
                                     searching = true
                                 }
                                 
-                                Task {
+                                Task { @MainActor in
+                                    defer { searching = false }
                                     do {
-                                        let response = try await getChatCompletion(prompt: searchText)
-                                        searchResponse = response
-                                        print("Response: \(response)")
+                                        searchResponse = try await getChatCompletion(prompt: searchText)
+                                    } catch is CancellationError {
+                                        // Cancellation is not an answer or an API failure.
                                     } catch {
-                                        print("Error: \(error)")
+                                        searchResponse = error.localizedDescription
                                     }
                                 }
                             }
@@ -94,13 +95,14 @@ struct BrowseForMeMobile: View {
                                     searching = true
                                 }
                                 
-                                Task {
+                                Task { @MainActor in
+                                    defer { searching = false }
                                     do {
-                                        let response = try await getChatCompletion(prompt: searchText)
-                                        searchResponse = response
-                                        print("Response: \(response)")
+                                        searchResponse = try await getChatCompletion(prompt: searchText)
+                                    } catch is CancellationError {
+                                        // Cancellation is not an answer or an API failure.
                                     } catch {
-                                        print("Error: \(error)")
+                                        searchResponse = error.localizedDescription
                                     }
                                 }
                             }
@@ -178,13 +180,14 @@ struct BrowseForMeMobile: View {
                     searching = true
                 }
                 
-                Task {
+                Task { @MainActor in
+                    defer { searching = false }
                     do {
-                        let response = try await getChatCompletion(prompt: searchText)
-                        searchResponse = response
-                        print("Response: \(response)")
+                        searchResponse = try await getChatCompletion(prompt: searchText)
+                    } catch is CancellationError {
+                        // Cancellation is not an answer or an API failure.
                     } catch {
-                        print("Error: \(error)")
+                        searchResponse = error.localizedDescription
                     }
                 }
             }

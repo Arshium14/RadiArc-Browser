@@ -46,7 +46,7 @@
 	<key>UIFileSharingEnabled</key>
 	<true/>
 	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>Aura uses your location to show local weather on the dashboard.</string>
+	<string>Sol Browser uses your location to show local weather on the dashboard.</string>
 	<key>NSAppTransportSecurity</key>
 	<dict>
 		<key>NSAllowsArbitraryLoads</key>

@@ -11,10 +11,9 @@ import WebKit
 
 
 class ObservableVariables: ObservableObject {
-    @StateObject var settings = SettingsVariables()
-    @StateObject var history = HistoryObservable()
-    @StateObject var shortcuts = KeyboardShortcuts()
-    @StateObject var boosts = BoostDataStorage()
+    let history = HistoryObservable()
+    let shortcuts = KeyboardShortcuts()
+    let boosts = BoostDataStorage()
     
     // Storage and Website Loading
     @AppStorage("currentSpace") var currentSpace = "Untitled"
@@ -33,7 +32,7 @@ class ObservableVariables: ObservableObject {
     
     @Published var startColor: Color = Color.purple
     @Published var endColor: Color = Color.pink
-    @Published var textColor: Color = Color.white
+    @Published var textColor: Color = Color.primary
     
     @AppStorage("startColorHex") var startHex = "8A3CEF"
     @AppStorage("endColorHex") var endHex = "84F5FE"

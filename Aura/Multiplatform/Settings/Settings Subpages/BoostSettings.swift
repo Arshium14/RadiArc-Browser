@@ -7,67 +7,44 @@
 // Copyright ©2024 DoorHinge Apps.
 //
 
-
 import SwiftUI
 
 struct BoostSettings: View {
-    @Environment(\.colorScheme) var colorScheme
-    
     @ObservedObject var settings: SettingsVariables
-    
-    @State var startHex: String
-    @State var endHex: String
-    
+    let startHex: String
+    let endHex: String
+
     var body: some View {
-        ZStack {
-#if !os(visionOS)
-            LinearGradient(colors: [Color(hex: startHex), Color(hex: endHex)], startPoint: .bottomLeading, endPoint: .topTrailing).ignoresSafeArea()
-#endif
-            
-            
-            Color.black.opacity((settings.prefferedColorScheme == "dark" || (settings.prefferedColorScheme == "automatic" && colorScheme == .dark)) ? 0.5: 0.0)
-                .ignoresSafeArea()
-                .animation(.default)
-            
-            
-            ScrollView {
-                VStack {
-                    Spacer()
-                        .frame(height: 30)
-                    
-                    HStack {
-                        Text("Boost Timeout")
-                            .font(.system(.title3, design: .rounded, weight: .bold))
-                            .foregroundStyle(Color.white)
-                        
-                        Spacer()
-                    }.padding(20)
-                    
-                    HStack {
-                        Text("\(settings.jsInjectionDelayBoosts, specifier: "%.2f")s")
-                            .foregroundStyle(Color.white)
-                        
-                        Slider(value: $settings.jsInjectionDelayBoosts, in: 0...20, step: 0.01)
+        Form {
+            Section {
+                Stepper(value: $settings.jsInjectionDelayBoosts, in: 0...20, step: 0.25) {
+                    LabeledContent("Boost Delay") {
+                        Text("\(settings.jsInjectionDelayBoosts, specifier: "%.2f") seconds")
                     }
-                    .padding(.horizontal, 10)
-                    
-                    HStack {
-                        Text("Change the interval before injecting the JavaScript with the boost into the website. A lower value will apply the boost faster, but might fail if the website hasn't loaded yet. Use lower values on fast internet connections and higher on slower ones. Support for automatic injection when the page loads is coming soon.")
-                            .foregroundStyle(Color.white)
-                            .padding(.leading, 20)
-                        
-                        Spacer()
-                    }
-                    
-                    Divider()
-                    
-                    Spacer()
-                        .frame(height: 20)
                 }
+                Stepper(value: $settings.jsInjectionDelay, in: 0...20, step: 0.25) {
+                    LabeledContent("Website Dark Mode Delay") {
+                        Text("\(settings.jsInjectionDelay, specifier: "%.2f") seconds")
+                    }
+                }
+            } header: {
+                Text("Script Timing")
+            } footer: {
+                Text("Wait before applying saved boosts or website dark mode. Longer delays can help on slow pages; shorter delays may run before a page is ready. These controls do not create or enable boosts.")
+            }
+
+            Section {
+                TextField("User Agent", text: $settings.userAgent, axis: .vertical)
+                    .autocorrectionDisabled()
+                    #if !os(macOS)
+                    .textInputAutocapitalization(.never)
+                    #endif
+            } header: {
+                Text("Website Compatibility")
+            } footer: {
+                Text("The user agent identifies this browser to websites. Changing it can affect compatibility. Applies when creating a new web view; close and reopen existing tabs to use it.")
             }
         }
-#if !os(macOS)
-        .toolbarBackground(.hidden, for: .navigationBar)
-#endif
+        .navigationTitle("Boosts & Advanced")
     }
 }
