@@ -739,7 +739,10 @@ struct ContentView: View {
                     TabbedPagedSidebar(isHovering: true)
                         .padding(8)
                         .frame(width: min(316, max(0, availableWidth - 16)))
-                        .background(shellBackground, in: RoundedRectangle(cornerRadius: 16))
+                        .background {
+                            shellBackground
+                                .clipShape(RoundedRectangle(cornerRadius: 16))
+                        }
                         .clipShape(RoundedRectangle(cornerRadius: 16))
                         .shadow(color: .black.opacity(0.12), radius: 12, y: 4)
                         .transition(.opacity)
